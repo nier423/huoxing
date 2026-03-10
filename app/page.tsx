@@ -3,6 +3,8 @@ import Hero from "@/components/Hero";
 import Feed from "@/components/Feed";
 import { getLatestArticles } from "@/lib/articles";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const articles = await getLatestArticles(8);
 

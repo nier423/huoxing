@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { getArticlesByCategory } from "@/lib/articles";
 
+export const dynamic = "force-dynamic";
+
 function formatDate(input: string): string {
   const date = new Date(input);
   if (Number.isNaN(date.getTime())) return input;
