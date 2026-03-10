@@ -33,6 +33,12 @@ export default function SettingsPage() {
   useEffect(() => {
     const loadProfile = async () => {
       const supabase = createClient()
+      if (!supabase) {
+        setMessage('服务配置缺失，请联系管理员')
+        setIsError(true)
+        setLoading(false)
+        return
+      }
       
       const { data: { user } } = await supabase.auth.getUser()
       
@@ -96,6 +102,12 @@ export default function SettingsPage() {
 
     try {
       const supabase = createClient()
+      if (!supabase) {
+        setMessage('服务配置缺失，请联系管理员')
+        setIsError(true)
+        setAvatarPreview(null)
+        return
+      }
       
       // 生成唯一文件名
       const fileExt = file.name.split('.').pop()

@@ -28,6 +28,11 @@ export default function Navbar() {
   // 获取用户登录状态
   useEffect(() => {
     const supabase = createClient();
+    if (!supabase) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
 
     // 获取当前用户
     const getUser = async () => {
