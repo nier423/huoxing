@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 
 export interface Article {
   id: string;
@@ -15,12 +15,15 @@ export interface Article {
 type RawArticleRow = Record<string, unknown>;
 
 function getSupabaseClient() {
-  try {
-    return createClient();
-  } catch (error) {
-    console.error("[articles] Supabase 客户端初始化失败:", error);
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error("[articles] 缺少 Supabase 环境变量配置");
     return null;
   }
+
+  return createClient(supabaseUrl, supabaseAnonKey);
 }
 
 function toText(value: unknown): string {
