@@ -26,6 +26,22 @@ function getSupabaseClient() {
   return createClient(supabaseUrl, supabaseAnonKey);
 }
 
+function getAdminSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    return null;
+  }
+
+  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
+
 function toText(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
@@ -66,16 +82,28 @@ function mapArticle(row: RawArticleRow): Article {
 
 export async function getLatestArticles(limit = 8): Promise<Article[]> {
   const supabase = getSupabaseClient();
-  if (!supabase) {
+  const adminSupabase = getAdminSupabaseClient();
+  const db = supabase ?? adminSupabase;
+  if (!db) {
     return [];
   }
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("articles")
     .select("*")
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error || !data) {
+    if (supabase && adminSupabase) {
+      const retry = await adminSupabase
+        .from("articles")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (!retry.error && retry.data) {
+        return (retry.data as RawArticleRow[]).map(mapArticle);
+      }
+    }
     console.error("[getLatestArticles] 获取文章失败:", error);
     return [];
   }
@@ -88,7 +116,9 @@ export async function getArticlesByCategory(
   limit = 20
 ): Promise<Article[]> {
   const supabase = getSupabaseClient();
-  if (!supabase) {
+  const adminSupabase = getAdminSupabaseClient();
+  const db = supabase ?? adminSupabase;
+  if (!db) {
     return [];
   }
   const categoryAliases =
@@ -100,15 +130,27 @@ export async function getArticlesByCategory(
   const orFilter = categoryAliases
     .map((value) => `category.eq.${value.replaceAll(",", "\\,")}`)
     .join(",");
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("articles")
     .select("*")
     .or(orFilter)
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (!error && data) {
+  if (!error && data && data.length > 0) {
     return (data as RawArticleRow[]).map(mapArticle);
+  }
+
+  if ((error || !data || data.length === 0) && supabase && adminSupabase) {
+    const retry = await adminSupabase
+      .from("articles")
+      .select("*")
+      .or(orFilter)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (!retry.error && retry.data && retry.data.length > 0) {
+      return (retry.data as RawArticleRow[]).map(mapArticle);
+    }
   }
 
   if (error) {
@@ -123,14 +165,27 @@ export async function getArticlesByCategory(
 
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
   const supabase = getSupabaseClient();
-  if (!supabase) {
+  const adminSupabase = getAdminSupabaseClient();
+  const db = supabase ?? adminSupabase;
+  if (!db) {
     return null;
   }
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("articles")
     .select("*")
     .eq("slug", slug)
     .maybeSingle();
+
+  if ((error || !data) && supabase && adminSupabase) {
+    const retry = await adminSupabase
+      .from("articles")
+      .select("*")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (!retry.error && retry.data) {
+      return mapArticle(retry.data as RawArticleRow);
+    }
+  }
 
   if (error) {
     console.error("[getArticleBySlug] 获取文章失败:", error);
