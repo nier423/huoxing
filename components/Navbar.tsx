@@ -3,9 +3,20 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, PenLine, X } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import UserMenu from "./UserMenu";
+
+interface UserInfo {
+  email: string;
+  displayName: string;
+  avatarUrl?: string | null;
+}
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+
   const navItems = [
     { name: "有话慢谈", href: "/slow-talk" },
     { name: "人间剧场", href: "/theater" },
@@ -13,6 +24,80 @@ export default function Navbar() {
     { name: "三行两句", href: "/poems" },
     { name: "见字如面", href: "/letters" },
   ];
+
+  // 获取用户登录状态
+  useEffect(() => {
+    const supabase = createClient();
+
+    // 获取当前用户
+    const getUser = async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        
+        if (authUser) {
+          // 优先从 user_metadata 获取显示名称
+          const displayName = authUser.user_metadata?.display_name 
+            || authUser.email?.split('@')[0] 
+            || '用户';
+          
+          // 尝试获取用户档案（可能因 RLS 失败，所以用 try-catch）
+          let avatarUrl = null;
+          let profileDisplayName = null;
+          
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('display_name, avatar_url')
+              .eq('id', authUser.id)
+              .single();
+            
+            if (profile) {
+              avatarUrl = profile.avatar_url;
+              profileDisplayName = profile.display_name;
+            }
+          } catch (e) {
+            // profiles 查询失败，忽略
+          }
+
+          setUser({
+            email: authUser.email || '',
+            displayName: profileDisplayName || displayName,
+            avatarUrl: avatarUrl,
+          });
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('获取用户信息失败:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getUser();
+
+    // 监听认证状态变化
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        const displayName = session.user.user_metadata?.display_name 
+          || session.user.email?.split('@')[0] 
+          || '用户';
+
+        setUser({
+          email: session.user.email || '',
+          displayName: displayName,
+          avatarUrl: null,
+        });
+        setLoading(false);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = isMobileMenuOpen ? "hidden" : "";
@@ -70,12 +155,18 @@ export default function Navbar() {
             <span className="text-xs md:text-sm font-youyou tracking-wide">联系我们</span>
           </Link>
           
-          <Link 
-            href="/login" 
-            className="text-xs md:text-sm font-youyou text-[#5D5D5D] hover:text-[#3A3A3A] tracking-wide border border-[#D7CCC8] px-3 py-1 md:px-5 md:py-1.5 rounded-full hover:bg-[#EFEBE9] transition-all duration-300"
-          >
-            登录 / 加入
-          </Link>
+          {loading ? (
+            <div className="w-8 h-8 rounded-full bg-[#E8E4DF] animate-pulse" />
+          ) : user ? (
+            <UserMenu user={user} />
+          ) : (
+            <Link 
+              href="/login" 
+              className="text-xs md:text-sm font-youyou text-[#5D5D5D] hover:text-[#3A3A3A] tracking-wide border border-[#D7CCC8] px-3 py-1 md:px-5 md:py-1.5 rounded-full hover:bg-[#EFEBE9] transition-all duration-300"
+            >
+              登录 / 加入
+            </Link>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -133,13 +224,41 @@ export default function Navbar() {
                 <PenLine className="w-4 h-4" strokeWidth={1.5} />
                 <span className="text-sm font-youyou tracking-wide">联系我们</span>
               </Link>
-              <Link
-                href="/login"
-                onClick={closeMobileMenu}
-                className="inline-flex justify-center text-sm font-youyou text-[#5D5D5D] hover:text-[#3A3A3A] tracking-wide border border-[#D7CCC8] px-5 py-2 rounded-full hover:bg-[#EFEBE9] transition-all duration-300"
-              >
-                登录 / 加入
-              </Link>
+              
+              {loading ? (
+                <div className="w-8 h-8 rounded-full bg-[#E8E4DF] animate-pulse" />
+              ) : user ? (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center space-x-3 py-2">
+                    <div className="w-10 h-10 rounded-full bg-[#A1887F] flex items-center justify-center text-white font-youyou">
+                      {user.displayName ? user.displayName.charAt(0).toUpperCase() : '?'}
+                    </div>
+                    <div>
+                      <p className="text-sm font-youyou text-[#3A3A3A]">{user.displayName}</p>
+                      <p className="text-xs text-[#8D8D8D]">{user.email}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const { signOut } = await import('@/app/actions/auth');
+                      await signOut();
+                      closeMobileMenu();
+                      window.location.href = '/';
+                    }}
+                    className="text-left text-sm font-youyou text-[#5D5D5D] hover:text-red-500 transition-colors"
+                  >
+                    退出登录
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={closeMobileMenu}
+                  className="inline-flex justify-center text-sm font-youyou text-[#5D5D5D] hover:text-[#3A3A3A] tracking-wide border border-[#D7CCC8] px-5 py-2 rounded-full hover:bg-[#EFEBE9] transition-all duration-300"
+                >
+                  登录 / 加入
+                </Link>
+              )}
             </div>
           </div>
         </div>

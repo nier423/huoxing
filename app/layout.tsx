@@ -1,24 +1,16 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Lato, Noto_Serif_SC } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const playfair = Playfair_Display({ 
-  subsets: ["latin"],
-  variable: "--font-playfair",
+const liuYe = localFont({
+  src: "../public/fonts/liuye.ttf",
+  variable: "--font-liuye-local",
   display: "swap",
 });
 
-const lato = Lato({
-  weight: ["300", "400", "700"],
-  subsets: ["latin"],
-  variable: "--font-lato",
-  display: "swap",
-});
-
-const notoSerifSC = Noto_Serif_SC({
-  weight: ["300", "400", "700"],
-  subsets: ["latin"], // Note: preload only supports subsets, Chinese might not be fully preloaded but variable works
-  variable: "--font-noto-serif",
+const youYou = localFont({
+  src: "../public/fonts/youyou.ttf",
+  variable: "--font-youyou-local",
   display: "swap",
 });
 
@@ -34,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body className={`${playfair.variable} ${lato.variable} ${notoSerifSC.variable} font-serif bg-[#F7F5F0] text-[#3A3A3A] paper-texture min-h-screen selection:bg-[#D7CCC8] selection:text-[#3A3A3A]`}>
+      <body className={`${liuYe.variable} ${youYou.variable} font-serif bg-[#F7F5F0] text-[#3A3A3A] paper-texture min-h-screen selection:bg-[#D7CCC8] selection:text-[#3A3A3A]`}>
         {children}
       </body>
     </html>

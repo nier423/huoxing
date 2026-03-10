@@ -33,10 +33,10 @@ const config: Config = {
         border: "#D7CCC8",
       },
       fontFamily: {
-        serif: ['"Playfair Display"', '"Noto Serif SC"', "serif"], // 优雅衬线
-        sans: ['"Lato"', '"Noto Sans SC"', "sans-serif"], // 无衬线
-        liuye: ["LiuYe", "serif"], // 也子工厂柳叶体
-        youyou: ["YouYou", "serif"], // 又又意宋
+        serif: ["NSimSun", "SimSun", "Songti SC", "STSong", "serif"], // 本地正文字体
+        sans: ['var(--font-liuye-local)', "LiuYe", "sans-serif"], // 本地无衬线回退
+        liuye: ['var(--font-liuye-local)', "LiuYe", "serif"], // 也子工厂柳叶体
+        youyou: ['var(--font-youyou-local)', "YouYou", "serif"], // 又又意宋
       },
       animation: {
         "fade-in": "fadeIn 0.8s ease-out forwards",

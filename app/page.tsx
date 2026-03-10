@@ -1,9 +1,11 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import Feed from "@/components/Feed";
-import Echoes from "@/components/Echoes";
+import { getLatestArticles } from "@/lib/articles";
 
-export default function Home() {
+export default async function Home() {
+  const articles = await getLatestArticles(8);
+
   return (
     <main className="min-h-screen bg-[#F7F5F0]">
       <Navbar />
@@ -13,7 +15,7 @@ export default function Home() {
         <Hero />
         
         <div className="relative z-10 -mt-12 md:-mt-24 rounded-t-3xl bg-white shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.05)] pt-12">
-          <Feed />
+          <Feed articles={articles} />
         </div>
       </div>
 

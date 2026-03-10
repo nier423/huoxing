@@ -1,52 +1,22 @@
-"use client";
-
-import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import type { Article } from "@/lib/articles";
 
-const articles = [
-  {
-    id: 1,
-    category: "人间剧场",
-    title: "商耆娜的故事",
-    excerpt: "这是一个关于寻找、迷失与回归的故事。商耆娜站在时间的十字路口，回望过去，那些记忆如同散落的珍珠，串联起她波澜壮阔的一生...",
-    author: "则时",
-    date: "2026.03.08",
-    sparked: false,
-    link: "/theater/shangqina"
-  },
-  {
-    id: 2,
-    category: "有话漫谈",
-    title: "冰层下的浮鱼",
-    excerpt: "从小奶奶就和我说，你父亲爱你。那时是我又一次和父亲吵架完，躲在奶奶家避风头。她是个普通的东北农村老太太，年轻时候经历些风雨，年老时也很要强...",
-    author: "Cee养花养鸟中",
-    date: "2026.03.08",
-    sparked: true,
-    link: "/slow-talk/bingchengxiadefuyu"
-  },
-  {
-    id: 3,
-    category: "胡说八道",
-    title: "我叫江山娇，出生于2020年",
-    excerpt: "我叫江山娇，我出生的那年，被称作互联网女性主义元年。很神奇，对不对？我很高兴自己能够和这个具有特别意义的年份绑定...",
-    author: "珍珠",
-    date: "2026.03.08",
-    sparked: false,
-    link: "/nonsense/wojiaojiangshan"
-  },
-  {
-    id: 4,
-    category: "三行两句",
-    title: "星火燎原",
-    excerpt: "勤劳的殷实,不同的边界\n不脱离边际,像欣赏一首诗\n细细品其中的卓绝,和满足期望的心感。",
-    author: "肖艳琳",
-    date: "2026.03.08",
-    sparked: false,
-    link: "/poems"
-  },
-];
+interface FeedProps {
+  articles: Article[];
+}
 
-export default function Feed() {
+function formatDate(input: string): string {
+  const date = new Date(input);
+  if (Number.isNaN(date.getTime())) return input;
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+export default function Feed({ articles }: FeedProps) {
   return (
     <section className="py-24 px-4 md:px-8 bg-[#F7F5F0]">
       <div className="max-w-6xl mx-auto space-y-24">
@@ -64,7 +34,7 @@ export default function Feed() {
   );
 }
 
-function ArticleCard({ article }: { article: any }) {
+function ArticleCard({ article }: { article: Article }) {
   return (
     <article className="group relative flex flex-col gap-6">
       <div className="flex items-center justify-between text-xs font-medium tracking-[0.2em] text-[#9E9E9E] uppercase border-b border-[#D7CCC8]/30 pb-3">
@@ -72,12 +42,15 @@ function ArticleCard({ article }: { article: any }) {
           <span className="w-1.5 h-1.5 bg-[#A1887F] rounded-full opacity-60" />
           <span className="text-[#A1887F]">{article.category}</span>
         </div>
-        <span className="font-serif">{article.date}</span>
+        <span className="font-serif">{formatDate(article.publishedAt)}</span>
       </div>
 
       <div className="space-y-4">
-        <h3 className="font-youyou text-3xl md:text-4xl text-[#2C2C2C] leading-snug group-hover:text-[#A1887F] transition-colors duration-500 cursor-pointer">
-          <Link href={article.link || `/article/${article.id}`}>{article.title}</Link>
+        <h3 className="flex items-start justify-between gap-4 font-youyou text-3xl md:text-4xl text-[#2C2C2C] leading-snug group-hover:text-[#A1887F] transition-colors duration-500 cursor-pointer">
+          <Link href={`/articles/${article.slug}`}>{article.title}</Link>
+          <span className="shrink-0 text-sm md:text-base font-serif text-[#9E9E9E]">
+            阅读 {article.viewCount}
+          </span>
         </h3>
 
         <p className="font-serif text-[#5D5D5D] leading-loose text-base md:text-lg line-clamp-3 opacity-90 group-hover:opacity-100 transition-opacity">

@@ -26,7 +26,7 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-serif text-[#2C2C2C] tracking-wide;
+    @apply font-youyou text-[#2C2C2C] tracking-wide;
   }
 }
 
