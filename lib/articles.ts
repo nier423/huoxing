@@ -14,6 +14,15 @@ export interface Article {
 
 type RawArticleRow = Record<string, unknown>;
 
+function getSupabaseClient() {
+  try {
+    return createClient();
+  } catch (error) {
+    console.error("[articles] Supabase 客户端初始化失败:", error);
+    return null;
+  }
+}
+
 function toText(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
@@ -53,7 +62,10 @@ function mapArticle(row: RawArticleRow): Article {
 }
 
 export async function getLatestArticles(limit = 8): Promise<Article[]> {
-  const supabase = createClient();
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return [];
+  }
   const { data, error } = await supabase
     .from("articles")
     .select("*")
@@ -72,7 +84,10 @@ export async function getArticlesByCategory(
   category: string,
   limit = 20
 ): Promise<Article[]> {
-  const supabase = createClient();
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return [];
+  }
   const categoryAliases =
     category === "有话漫谈"
       ? ["有话漫谈", "有话慢谈"]
@@ -104,7 +119,10 @@ export async function getArticlesByCategory(
 }
 
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
-  const supabase = createClient();
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return null;
+  }
   const { data, error } = await supabase
     .from("articles")
     .select("*")
