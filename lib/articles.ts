@@ -90,6 +90,7 @@ export async function getLatestArticles(limit = 8): Promise<Article[]> {
   const { data, error } = await db
     .from("articles")
     .select("*")
+    .eq("is_published", true)
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -98,6 +99,7 @@ export async function getLatestArticles(limit = 8): Promise<Article[]> {
       const retry = await adminSupabase
         .from("articles")
         .select("*")
+        .eq("is_published", true)
         .order("created_at", { ascending: false })
         .limit(limit);
       if (!retry.error && retry.data) {
@@ -133,6 +135,7 @@ export async function getArticlesByCategory(
   const { data, error } = await db
     .from("articles")
     .select("*")
+    .eq("is_published", true)
     .or(orFilter)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -145,6 +148,7 @@ export async function getArticlesByCategory(
     const retry = await adminSupabase
       .from("articles")
       .select("*")
+      .eq("is_published", true)
       .or(orFilter)
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -173,6 +177,7 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
   const { data, error } = await db
     .from("articles")
     .select("*")
+    .eq("is_published", true)
     .eq("slug", slug)
     .maybeSingle();
 
@@ -180,6 +185,7 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
     const retry = await adminSupabase
       .from("articles")
       .select("*")
+      .eq("is_published", true)
       .eq("slug", slug)
       .maybeSingle();
     if (!retry.error && retry.data) {
