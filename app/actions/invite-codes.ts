@@ -1,24 +1,15 @@
 'use server'
 
-/**
- * 邀请码管理 Server Actions
- * 用于管理员查看、生成、管理邀请码
- */
-
+import { getAdminAccess } from '@/lib/admin-access'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-// ============================================
-// 类型定义
-// ============================================
-
 export interface InviteCode {
+  created_at: string
   id: string
   code: string
   is_used: boolean
   used_by_user_id: string | null
   used_at: string | null
-  created_at: string
-  // 关联的用户信息（如果已使用）
   used_by_email?: string
 }
 
@@ -29,41 +20,73 @@ interface ActionResult<T = null> {
   error?: string
 }
 
-// ============================================
-// 辅助函数
-// ============================================
+async function requireInviteCodeAdmin(): Promise<
+  | { ok: true; userId: string }
+  | { ok: false; error: string; message: string }
+> {
+  const access = await getAdminAccess()
 
-/**
- * 生成随机邀请码（格式：XXXX-XXXX）
- */
+  if (access.error === 'NOT_AUTHENTICATED') {
+    return {
+      ok: false,
+      message: '请先登录',
+      error: 'NOT_AUTHENTICATED',
+    }
+  }
+
+  if (access.error) {
+    return {
+      ok: false,
+      message: '管理员身份校验失败',
+      error: access.error,
+    }
+  }
+
+  if (!access.isAdmin || !access.user) {
+    return {
+      ok: false,
+      message: '无权访问该页面',
+      error: 'UNAUTHORIZED',
+    }
+  }
+
+  return {
+    ok: true,
+    userId: access.user.id,
+  }
+}
+
 function generateInviteCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // 排除容易混淆的字符 I, O, 0, 1
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let code = ''
+
   for (let i = 0; i < 8; i++) {
     if (i === 4) code += '-'
     code += chars.charAt(Math.floor(Math.random() * chars.length))
   }
+
   return code
 }
 
-// ============================================
-// Server Actions
-// ============================================
-
-/**
- * 获取所有邀请码列表
- */
 export async function getInviteCodes(): Promise<ActionResult<InviteCode[]>> {
   try {
-    const adminClient = createAdminClient()
+    const adminAccess = await requireInviteCodeAdmin()
+    if (!adminAccess.ok) {
+      return {
+        success: false,
+        message: adminAccess.message,
+        error: adminAccess.error,
+      }
+    }
 
+    const adminClient = createAdminClient()
     const { data: codes, error } = await adminClient
       .from('invite_codes')
       .select('*')
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('[getInviteCodes] 查询失败:', error)
+      console.error('[getInviteCodes] Failed to load invite codes:', error)
       return {
         success: false,
         message: '获取邀请码列表失败',
@@ -71,36 +94,34 @@ export async function getInviteCodes(): Promise<ActionResult<InviteCode[]>> {
       }
     }
 
-    // 获取已使用邀请码对应的用户邮箱
-    const usedCodes = codes?.filter(c => c.used_by_user_id) || []
-    const userIds = usedCodes.map(c => c.used_by_user_id)
+    const usedCodes = codes?.filter((code) => code.used_by_user_id) ?? []
+    const userIds = usedCodes
+      .map((code) => code.used_by_user_id)
+      .filter((value): value is string => Boolean(value))
 
-    let userEmails: Record<string, string> = {}
-    
+    const userEmails: Record<string, string> = {}
+
     if (userIds.length > 0) {
-      const { data: users } = await adminClient.auth.admin.listUsers()
-      if (users?.users) {
-        users.users.forEach(user => {
-          if (userIds.includes(user.id)) {
-            userEmails[user.id] = user.email || '未知'
-          }
-        })
+      const { data: usersData } = await adminClient.auth.admin.listUsers()
+      for (const user of usersData?.users ?? []) {
+        if (userIds.includes(user.id)) {
+          userEmails[user.id] = user.email || '未知用户'
+        }
       }
     }
-
-    // 合并用户邮箱信息
-    const codesWithEmail: InviteCode[] = (codes || []).map(code => ({
-      ...code,
-      used_by_email: code.used_by_user_id ? userEmails[code.used_by_user_id] : undefined,
-    }))
 
     return {
       success: true,
       message: '获取成功',
-      data: codesWithEmail,
+      data: (codes ?? []).map((code) => ({
+        ...code,
+        used_by_email: code.used_by_user_id
+          ? userEmails[code.used_by_user_id]
+          : undefined,
+      })),
     }
   } catch (error) {
-    console.error('[getInviteCodes] 异常:', error)
+    console.error('[getInviteCodes] Unexpected error:', error)
     return {
       success: false,
       message: '获取邀请码列表失败',
@@ -109,38 +130,42 @@ export async function getInviteCodes(): Promise<ActionResult<InviteCode[]>> {
   }
 }
 
-/**
- * 生成新的邀请码
- * @param count 生成数量（默认1个，最多20个）
- */
-export async function createInviteCodes(count: number = 1): Promise<ActionResult<string[]>> {
+export async function createInviteCodes(
+  count: number = 1
+): Promise<ActionResult<string[]>> {
   try {
-    // 限制单次生成数量
+    const adminAccess = await requireInviteCodeAdmin()
+    if (!adminAccess.ok) {
+      return {
+        success: false,
+        message: adminAccess.message,
+        error: adminAccess.error,
+      }
+    }
+
     const safeCount = Math.min(Math.max(1, count), 20)
-    
     const adminClient = createAdminClient()
     const newCodes: string[] = []
 
-    // 生成不重复的邀请码
     for (let i = 0; i < safeCount; i++) {
-      let code: string
+      let code = ''
       let exists = true
       let attempts = 0
 
-      // 确保生成的邀请码不重复
       while (exists && attempts < 10) {
         code = generateInviteCode()
+
         const { data } = await adminClient
           .from('invite_codes')
           .select('id')
           .eq('code', code)
           .single()
-        
-        exists = !!data
+
+        exists = Boolean(data)
         attempts++
-        
+
         if (!exists) {
-          newCodes.push(code!)
+          newCodes.push(code)
         }
       }
     }
@@ -148,18 +173,17 @@ export async function createInviteCodes(count: number = 1): Promise<ActionResult
     if (newCodes.length === 0) {
       return {
         success: false,
-        message: '生成邀请码失败，请重试',
+        message: '生成邀请码失败，请稍后重试',
         error: 'GENERATION_FAILED',
       }
     }
 
-    // 批量插入邀请码
     const { error } = await adminClient
       .from('invite_codes')
-      .insert(newCodes.map(code => ({ code, is_used: false })))
+      .insert(newCodes.map((code) => ({ code, is_used: false })))
 
     if (error) {
-      console.error('[createInviteCodes] 插入失败:', error)
+      console.error('[createInviteCodes] Failed to insert invite codes:', error)
       return {
         success: false,
         message: '保存邀请码失败',
@@ -173,7 +197,7 @@ export async function createInviteCodes(count: number = 1): Promise<ActionResult
       data: newCodes,
     }
   } catch (error) {
-    console.error('[createInviteCodes] 异常:', error)
+    console.error('[createInviteCodes] Unexpected error:', error)
     return {
       success: false,
       message: '生成邀请码失败',
@@ -182,14 +206,18 @@ export async function createInviteCodes(count: number = 1): Promise<ActionResult
   }
 }
 
-/**
- * 删除未使用的邀请码
- */
 export async function deleteInviteCode(codeId: string): Promise<ActionResult> {
   try {
-    const adminClient = createAdminClient()
+    const adminAccess = await requireInviteCodeAdmin()
+    if (!adminAccess.ok) {
+      return {
+        success: false,
+        message: adminAccess.message,
+        error: adminAccess.error,
+      }
+    }
 
-    // 先检查邀请码是否已被使用
+    const adminClient = createAdminClient()
     const { data: code, error: fetchError } = await adminClient
       .from('invite_codes')
       .select('is_used')
@@ -212,14 +240,13 @@ export async function deleteInviteCode(codeId: string): Promise<ActionResult> {
       }
     }
 
-    // 删除邀请码
     const { error: deleteError } = await adminClient
       .from('invite_codes')
       .delete()
       .eq('id', codeId)
 
     if (deleteError) {
-      console.error('[deleteInviteCode] 删除失败:', deleteError)
+      console.error('[deleteInviteCode] Failed to delete invite code:', deleteError)
       return {
         success: false,
         message: '删除失败',
@@ -232,7 +259,7 @@ export async function deleteInviteCode(codeId: string): Promise<ActionResult> {
       message: '删除成功',
     }
   } catch (error) {
-    console.error('[deleteInviteCode] 异常:', error)
+    console.error('[deleteInviteCode] Unexpected error:', error)
     return {
       success: false,
       message: '删除邀请码失败',
@@ -241,17 +268,24 @@ export async function deleteInviteCode(codeId: string): Promise<ActionResult> {
   }
 }
 
-/**
- * 获取邀请码统计信息
- */
-export async function getInviteCodeStats(): Promise<ActionResult<{
-  total: number
-  used: number
-  available: number
-}>> {
+export async function getInviteCodeStats(): Promise<
+  ActionResult<{
+    total: number
+    used: number
+    available: number
+  }>
+> {
   try {
-    const adminClient = createAdminClient()
+    const adminAccess = await requireInviteCodeAdmin()
+    if (!adminAccess.ok) {
+      return {
+        success: false,
+        message: adminAccess.message,
+        error: adminAccess.error,
+      }
+    }
 
+    const adminClient = createAdminClient()
     const { data: codes, error } = await adminClient
       .from('invite_codes')
       .select('is_used')
@@ -264,8 +298,8 @@ export async function getInviteCodeStats(): Promise<ActionResult<{
       }
     }
 
-    const total = codes?.length || 0
-    const used = codes?.filter(c => c.is_used).length || 0
+    const total = codes?.length ?? 0
+    const used = codes?.filter((code) => code.is_used).length ?? 0
     const available = total - used
 
     return {
@@ -274,6 +308,7 @@ export async function getInviteCodeStats(): Promise<ActionResult<{
       data: { total, used, available },
     }
   } catch (error) {
+    console.error('[getInviteCodeStats] Unexpected error:', error)
     return {
       success: false,
       message: '获取统计失败',

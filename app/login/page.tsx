@@ -1,15 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { signInWithEmail, signUpWithCode } from '@/app/actions/auth'
 import { ArrowLeft, Eye, EyeOff, Sparkles } from 'lucide-react'
 
 type AuthMode = 'login' | 'register'
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [mode, setMode] = useState<AuthMode>('login')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -21,6 +22,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const redirectTo = (() => {
+    const candidate = searchParams.get('redirectTo')
+    return candidate?.startsWith('/') ? candidate : '/'
+  })()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,7 +39,7 @@ export default function LoginPage() {
         if (result.success) {
           setMessage(result.message)
           setIsError(false)
-          router.push('/')
+          router.push(redirectTo)
           router.refresh()
         } else {
           setMessage(result.message)
@@ -280,5 +285,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
   )
 }
