@@ -1,16 +1,16 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
-import { ArrowLeft, PenSquare } from 'lucide-react'
-import Navbar from '@/components/Navbar'
-import SubmissionForm from '@/components/submit/submission-form'
+import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowLeft, PenSquare } from "lucide-react";
+import Navbar from "@/components/Navbar";
+import SubmissionForm from "@/components/submit/submission-form";
 
 export const metadata: Metadata = {
-  title: '在线投稿 | 星火',
+  title: "在线投稿 | 星火",
   robots: {
     index: false,
     follow: false,
   },
-}
+};
 
 export default function SubmitPage() {
   return (
@@ -20,11 +20,11 @@ export default function SubmitPage() {
       <div className="mx-auto max-w-4xl px-4 pb-24 pt-32 md:px-8">
         <div className="mb-8">
           <Link
-            href="/contact"
+            href="/"
             className="inline-flex items-center gap-2 text-sm text-[#5D5D5D] transition-colors hover:text-[#A1887F]"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span className="font-youyou">返回联系页面</span>
+            <span className="font-youyou">返回首页</span>
           </Link>
         </div>
 
@@ -47,5 +47,5 @@ export default function SubmitPage() {
         </div>
       </div>
     </main>
-  )
+  );
 }

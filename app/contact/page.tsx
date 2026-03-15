@@ -1,71 +1,68 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { ArrowRight, Mail, PenSquare } from 'lucide-react'
-import Navbar from '@/components/Navbar'
+import Navbar from "@/components/Navbar";
+import { Mail, ArrowRight } from "lucide-react";
 
-export default function ContactPage() {
+export default function Contact() {
   return (
     <main className="min-h-screen bg-[#F7F5F0]">
       <Navbar />
 
-      <div className="mx-auto max-w-3xl animate-fade-in px-4 pb-24 pt-32 md:px-8">
-        <div className="space-y-12 text-center">
-          <h1 className="font-youyou text-4xl tracking-[0.2em] text-[#3A3A3A] md:text-5xl">
+      <div className="pt-32 pb-24 px-4 md:px-8 max-w-3xl mx-auto animate-fade-in">
+        <div className="text-center space-y-12">
+          <h1 className="font-youyou text-4xl md:text-5xl text-[#3A3A3A] tracking-[0.2em]">
             联系我们
           </h1>
 
-          <div className="mx-auto h-[1px] w-16 bg-[#D7CCC8]" />
+          <div className="w-16 h-[1px] bg-[#D7CCC8] mx-auto" />
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <Link
-              href="/submit"
-              className="group relative overflow-hidden rounded-3xl border border-[#EFEBE9] bg-white p-10 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] transition-all duration-500 hover:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.08)]"
-            >
-              <div className="absolute inset-0 paper-texture opacity-20" />
-              <div className="relative z-10 flex flex-col items-center gap-6">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#D7CCC8]/50 bg-[#F7F5F0] transition-transform duration-500 group-hover:scale-110">
-                  <PenSquare className="h-6 w-6 text-[#A1887F]" strokeWidth={1.5} />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm uppercase tracking-widest text-[#9E9E9E]">
-                    在线投稿
-                  </p>
-                  <p className="font-youyou text-2xl text-[#3A3A3A]">打开投稿页面</p>
-                </div>
-                <div className="flex items-center gap-2 text-sm italic text-[#A1887F] opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
-                  <span>进入投稿页</span>
-                  <ArrowRight className="h-4 w-4" />
-                </div>
-              </div>
-            </Link>
+          <p className="font-serif text-[#5D5D5D] text-lg leading-loose max-w-xl mx-auto">
+            无论是想要投稿、分享故事，
+            <br />
+            还是只是想和我们说说话，
+            <br />
+            都欢迎写信给我们。
+          </p>
 
-            <a
-              href="mailto:xinghuo0308@outlook.com"
-              className="group relative overflow-hidden rounded-3xl border border-[#EFEBE9] bg-white p-10 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] transition-all duration-500 hover:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.08)]"
-            >
-              <div className="absolute inset-0 paper-texture opacity-20" />
-              <div className="relative z-10 flex flex-col items-center gap-6">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#D7CCC8]/50 bg-[#F7F5F0] transition-transform duration-500 group-hover:scale-110">
-                  <Mail className="h-6 w-6 text-[#A1887F]" strokeWidth={1.5} />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm uppercase tracking-widest text-[#9E9E9E]">
-                    投稿邮箱
-                  </p>
-                  <p className="break-all font-serif text-xl text-[#3A3A3A] md:text-2xl">
-                    xinghuo0308@outlook.com
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 text-sm italic text-[#A1887F] opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
-                  <span>发送邮件</span>
-                  <ArrowRight className="h-4 w-4" />
-                </div>
+          <div className="bg-white p-12 md:p-16 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] rounded-sm border border-[#EFEBE9] mt-16 relative overflow-hidden group hover:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.08)] transition-all duration-500">
+            <div className="absolute inset-0 paper-texture opacity-20 pointer-events-none" />
+
+            <div className="relative z-10 flex flex-col items-center gap-8">
+              <div className="w-16 h-16 bg-[#F7F5F0] rounded-full flex items-center justify-center border border-[#D7CCC8]/50 group-hover:scale-110 transition-transform duration-500">
+                <Mail className="w-6 h-6 text-[#A1887F]" strokeWidth={1.5} />
               </div>
-            </a>
+
+              <div className="space-y-2">
+                <p className="font-serif text-[#9E9E9E] text-sm tracking-widest uppercase">
+                  投稿邮箱
+                </p>
+                <a
+                  href="mailto:xinghuo0308@outlook.com"
+                  className="font-serif text-2xl md:text-3xl text-[#3A3A3A] hover:text-[#A1887F] transition-colors border-b border-transparent hover:border-[#A1887F] pb-1 block"
+                >
+                  xinghuo0308@outlook.com
+                </a>
+              </div>
+
+              <div className="mt-8 flex items-center gap-2 text-[#A1887F] text-sm font-serif italic opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform translate-y-2 group-hover:translate-y-0">
+                <span>期待你的来信</span>
+                <ArrowRight className="w-4 h-4" />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-16 space-y-4">
+            <h3 className="font-youyou text-xl text-[#5D5D5D] tracking-widest">
+              投稿指南
+            </h3>
+            <ul className="font-serif text-[#757575] space-y-2 text-sm md:text-base leading-relaxed">
+              <li>• 邮件主题请统一格式：<strong>栏目名 + 作品名 + 作者名</strong></li>
+              <li>• 建议以 Word 文档、PDF 或 Markdown 格式附件发送</li>
+              <li>• 编辑部均为兼职运营，回复时间不定，但每封来信都会回复录用结果，请耐心等待</li>
+            </ul>
           </div>
         </div>
       </div>
     </main>
-  )
+  );
 }
