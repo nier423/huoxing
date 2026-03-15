@@ -24,6 +24,7 @@ import {
 
 type Filter = 'all' | 'available' | 'used'
 type MessageTone = 'error' | 'success'
+
 const OPS_ROOM_LOGIN_PATH = '/login?redirectTo=%2Fops-room'
 
 function formatDateTime(value: string | null) {
@@ -93,18 +94,18 @@ export default function InviteCodesPanel() {
   }
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [])
 
   const copyCode = async (code: string, id: string) => {
     try {
       await navigator.clipboard.writeText(code)
       setCopiedId(id)
-      setMessage('邀请码已复制到剪贴板')
+      setMessage('邀请码已复制到剪贴板。')
       setMessageTone('success')
       window.setTimeout(() => setCopiedId(null), 2000)
-    } catch (error) {
-      setMessage('复制失败，请手动复制')
+    } catch {
+      setMessage('复制失败，请手动复制。')
       setMessageTone('error')
     }
   }
@@ -137,7 +138,7 @@ export default function InviteCodesPanel() {
       return
     }
 
-    setMessage('邀请码已删除')
+    setMessage('邀请码已删除。')
     setMessageTone('success')
     await loadData()
   }
@@ -163,15 +164,22 @@ export default function InviteCodesPanel() {
             <span className="text-[#D7CCC8]">|</span>
             <div>
               <h1 className="font-youyou text-lg text-[#3A3A3A]">操作室</h1>
-              <p className="text-xs tracking-wide text-[#8D8D8D]">
-                邀请码使用情况
-              </p>
+              <div className="mt-1 flex items-center gap-3 text-xs tracking-wide text-[#8D8D8D]">
+                <span>邀请码使用情况</span>
+                <span className="text-[#D7CCC8]">·</span>
+                <Link
+                  href="/ops-room/articles"
+                  className="text-[#A1887F] transition-colors hover:text-[#8D6E63]"
+                >
+                  总编辑发布台
+                </Link>
+              </div>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={loadData}
+            onClick={() => void loadData()}
             disabled={loading}
             className="rounded-lg p-2 text-[#5D5D5D] transition-colors hover:bg-[#F7F5F0] hover:text-[#3A3A3A] disabled:opacity-50"
             title="刷新"
@@ -302,7 +310,7 @@ export default function InviteCodesPanel() {
             </div>
           ) : filteredCodes.length === 0 ? (
             <div className="px-6 py-14 text-center font-youyou text-[#8D8D8D]">
-              当前没有符合条件的邀请码
+              当前没有符合条件的邀请码。
             </div>
           ) : (
             <div className="divide-y divide-[#E8E4DF]">
@@ -346,7 +354,7 @@ export default function InviteCodesPanel() {
                     {!code.is_used && (
                       <button
                         type="button"
-                        onClick={() => copyCode(code.code, code.id)}
+                        onClick={() => void copyCode(code.code, code.id)}
                         className="rounded-lg p-2 text-[#5D5D5D] transition-colors hover:bg-[#F7F5F0] hover:text-[#3A3A3A]"
                         title="复制邀请码"
                       >
@@ -361,7 +369,7 @@ export default function InviteCodesPanel() {
                     {!code.is_used && (
                       <button
                         type="button"
-                        onClick={() => handleDelete(code.id)}
+                        onClick={() => void handleDelete(code.id)}
                         className="rounded-lg p-2 text-[#BCAAA4] transition-colors hover:bg-red-50 hover:text-red-500"
                         title="删除邀请码"
                       >

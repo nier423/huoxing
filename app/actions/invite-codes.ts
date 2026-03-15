@@ -29,7 +29,7 @@ async function requireInviteCodeAdmin(): Promise<
   if (access.error === 'NOT_AUTHENTICATED') {
     return {
       ok: false,
-      message: '请先登录',
+      message: '请先登录。',
       error: 'NOT_AUTHENTICATED',
     }
   }
@@ -37,7 +37,7 @@ async function requireInviteCodeAdmin(): Promise<
   if (access.error) {
     return {
       ok: false,
-      message: '管理员身份校验失败',
+      message: '管理员身份校验失败。',
       error: access.error,
     }
   }
@@ -45,7 +45,7 @@ async function requireInviteCodeAdmin(): Promise<
   if (!access.isAdmin || !access.user) {
     return {
       ok: false,
-      message: '无权访问该页面',
+      message: '无权访问该页面。',
       error: 'UNAUTHORIZED',
     }
   }
@@ -89,7 +89,7 @@ export async function getInviteCodes(): Promise<ActionResult<InviteCode[]>> {
       console.error('[getInviteCodes] Failed to load invite codes:', error)
       return {
         success: false,
-        message: '获取邀请码列表失败',
+        message: '获取邀请码列表失败。',
         error: error.message,
       }
     }
@@ -112,7 +112,7 @@ export async function getInviteCodes(): Promise<ActionResult<InviteCode[]>> {
 
     return {
       success: true,
-      message: '获取成功',
+      message: '获取成功。',
       data: (codes ?? []).map((code) => ({
         ...code,
         used_by_email: code.used_by_user_id
@@ -124,7 +124,7 @@ export async function getInviteCodes(): Promise<ActionResult<InviteCode[]>> {
     console.error('[getInviteCodes] Unexpected error:', error)
     return {
       success: false,
-      message: '获取邀请码列表失败',
+      message: '获取邀请码列表失败。',
       error: String(error),
     }
   }
@@ -173,7 +173,7 @@ export async function createInviteCodes(
     if (newCodes.length === 0) {
       return {
         success: false,
-        message: '生成邀请码失败，请稍后重试',
+        message: '生成邀请码失败，请稍后重试。',
         error: 'GENERATION_FAILED',
       }
     }
@@ -186,21 +186,21 @@ export async function createInviteCodes(
       console.error('[createInviteCodes] Failed to insert invite codes:', error)
       return {
         success: false,
-        message: '保存邀请码失败',
+        message: '保存邀请码失败。',
         error: error.message,
       }
     }
 
     return {
       success: true,
-      message: `成功生成 ${newCodes.length} 个邀请码`,
+      message: `成功生成 ${newCodes.length} 个邀请码。`,
       data: newCodes,
     }
   } catch (error) {
     console.error('[createInviteCodes] Unexpected error:', error)
     return {
       success: false,
-      message: '生成邀请码失败',
+      message: '生成邀请码失败。',
       error: String(error),
     }
   }
@@ -227,7 +227,7 @@ export async function deleteInviteCode(codeId: string): Promise<ActionResult> {
     if (fetchError || !code) {
       return {
         success: false,
-        message: '邀请码不存在',
+        message: '邀请码不存在。',
         error: 'NOT_FOUND',
       }
     }
@@ -235,7 +235,7 @@ export async function deleteInviteCode(codeId: string): Promise<ActionResult> {
     if (code.is_used) {
       return {
         success: false,
-        message: '已使用的邀请码不能删除',
+        message: '已使用的邀请码不能删除。',
         error: 'ALREADY_USED',
       }
     }
@@ -249,20 +249,20 @@ export async function deleteInviteCode(codeId: string): Promise<ActionResult> {
       console.error('[deleteInviteCode] Failed to delete invite code:', deleteError)
       return {
         success: false,
-        message: '删除失败',
+        message: '删除失败。',
         error: deleteError.message,
       }
     }
 
     return {
       success: true,
-      message: '删除成功',
+      message: '删除成功。',
     }
   } catch (error) {
     console.error('[deleteInviteCode] Unexpected error:', error)
     return {
       success: false,
-      message: '删除邀请码失败',
+      message: '删除邀请码失败。',
       error: String(error),
     }
   }
@@ -293,7 +293,7 @@ export async function getInviteCodeStats(): Promise<
     if (error) {
       return {
         success: false,
-        message: '获取统计失败',
+        message: '获取统计失败。',
         error: error.message,
       }
     }
@@ -304,14 +304,14 @@ export async function getInviteCodeStats(): Promise<
 
     return {
       success: true,
-      message: '获取成功',
+      message: '获取成功。',
       data: { total, used, available },
     }
   } catch (error) {
     console.error('[getInviteCodeStats] Unexpected error:', error)
     return {
       success: false,
-      message: '获取统计失败',
+      message: '获取统计失败。',
       error: String(error),
     }
   }
