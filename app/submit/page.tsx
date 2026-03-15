@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowLeft, Mail, PenSquare } from 'lucide-react'
+import { ArrowLeft, PenSquare } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import SubmissionForm from '@/components/submit/submission-form'
 
@@ -35,21 +35,11 @@ export default function SubmitPage() {
               <h1 className="font-youyou text-4xl text-[#3A3A3A] md:text-5xl">
                 在线投稿
               </h1>
-              <p className="mt-4 text-base leading-8 text-[#5D5D5D]">
-                稿件会作为邮件附件直接发送到编辑部邮箱。未录用稿件不会写入网站数据库，只有总编辑在后台整理并发布后的文章，才会同步显示在网站前台。
-              </p>
             </div>
 
-            <div className="grid gap-3 rounded-2xl border border-[#E8E4DF] bg-[#F7F5F0] p-4 text-sm text-[#5D5D5D] md:min-w-[260px]">
-              <div className="flex items-center gap-2">
-                <PenSquare className="h-4 w-4 text-[#A1887F]" />
-                <span>支持 PDF / DOC / DOCX / Markdown</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-[#A1887F]" />
-                <span>稿件直接发送到编辑部邮箱</span>
-              </div>
-              <p className="text-[#8D8D8D]">请将单个附件控制在 4.5MB 以内。</p>
+            <div className="flex items-center gap-2 rounded-2xl border border-[#E8E4DF] bg-[#F7F5F0] px-4 py-3 text-sm text-[#5D5D5D]">
+              <PenSquare className="h-4 w-4 text-[#A1887F]" />
+              <span>支持 PDF / DOC / DOCX / Markdown</span>
             </div>
           </div>
 

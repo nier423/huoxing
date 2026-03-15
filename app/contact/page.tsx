@@ -17,10 +17,6 @@ export default function ContactPage() {
 
           <div className="mx-auto h-[1px] w-16 bg-[#D7CCC8]" />
 
-          <p className="mx-auto max-w-xl text-lg leading-loose text-[#5D5D5D]">
-            无论是投稿、分享故事，还是单纯想写信给我们，都可以通过下面两个入口联系编辑部。在线投稿会把稿件作为附件直接发送到收稿邮箱。
-          </p>
-
           <div className="grid gap-6 md:grid-cols-2">
             <Link
               href="/submit"
@@ -38,7 +34,7 @@ export default function ContactPage() {
                   <p className="font-youyou text-2xl text-[#3A3A3A]">打开投稿页面</p>
                 </div>
                 <div className="flex items-center gap-2 text-sm italic text-[#A1887F] opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
-                  <span>发送附件给编辑部</span>
+                  <span>进入投稿页</span>
                   <ArrowRight className="h-4 w-4" />
                 </div>
               </div>
@@ -62,22 +58,11 @@ export default function ContactPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-sm italic text-[#A1887F] opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
-                  <span>也可以继续用邮件投稿</span>
+                  <span>发送邮件</span>
                   <ArrowRight className="h-4 w-4" />
                 </div>
               </div>
             </a>
-          </div>
-
-          <div className="mt-16 space-y-4">
-            <h3 className="font-youyou text-xl tracking-widest text-[#5D5D5D]">
-              投稿指南
-            </h3>
-            <ul className="space-y-2 text-sm leading-relaxed text-[#757575] md:text-base">
-              <li>在线投稿支持 PDF、Word（.doc/.docx）和 Markdown（.md）文件。</li>
-              <li>单个附件请控制在 4.5MB 以内，便于编辑部直接在邮箱中查看。</li>
-              <li>只有录用稿件才会由总编辑整理后上传到网站后台并发布。</li>
-            </ul>
           </div>
         </div>
       </div>

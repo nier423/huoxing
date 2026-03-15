@@ -132,9 +132,6 @@ export default function SubmissionForm() {
           accept={ACCEPTED_FILE_TYPES}
           className="block w-full rounded-xl border border-dashed border-[#D7CCC8] bg-white px-4 py-4 text-sm text-[#5D5D5D] file:mr-4 file:rounded-full file:border-0 file:bg-[#3A3A3A] file:px-4 file:py-2 file:text-sm file:text-white hover:file:bg-[#2A2A2A]"
         />
-        <p className="mt-2 text-sm text-[#8D8D8D]">
-          支持 PDF、Word（.doc/.docx）和 Markdown（.md），单个文件最大 {MAX_FILE_SIZE_LABEL}。
-        </p>
       </div>
 
       {message && (
@@ -155,7 +152,7 @@ export default function SubmissionForm() {
         className="inline-flex items-center gap-2 rounded-full bg-[#3A3A3A] px-6 py-3 text-sm text-white transition-colors hover:bg-[#2A2A2A] disabled:bg-[#8D8D8D]"
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        <span className="font-youyou">{loading ? '发送中...' : '发送给编辑部'}</span>
+        <span className="font-youyou">{loading ? '提交中...' : '提交稿件'}</span>
       </button>
     </form>
   )
