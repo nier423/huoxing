@@ -1,6 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, BookOpen } from "lucide-react";
 import { getArticlesByCategory } from "@/lib/articles";
 
 export const dynamic = "force-dynamic";
@@ -54,8 +54,9 @@ export default async function Nonsense() {
               <div className="space-y-4">
                 <h2 className="flex items-start justify-between gap-4 font-youyou text-3xl md:text-4xl text-[#2C2C2C] leading-snug group-hover:text-[#A1887F] transition-colors duration-500">
                   <Link href={`/articles/${story.slug}`}>{story.title}</Link>
-                  <span className="shrink-0 text-sm md:text-base font-serif text-[#9E9E9E]">
-                    阅读 {story.viewCount}
+                  <span className="shrink-0 inline-flex items-center gap-1.5 text-sm md:text-base font-serif text-[#9E9E9E]">
+                    <BookOpen className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden="true" />
+                    <span>{story.viewCount}</span>
                   </span>
                 </h2>
 

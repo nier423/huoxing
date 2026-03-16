@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BookOpen } from "lucide-react";
 import type { Article } from "@/lib/articles";
 
 interface FeedProps {
@@ -48,8 +49,9 @@ function ArticleCard({ article }: { article: Article }) {
       <div className="space-y-4">
         <h3 className="flex items-start justify-between gap-4 font-youyou text-3xl md:text-4xl text-[#2C2C2C] leading-snug group-hover:text-[#A1887F] transition-colors duration-500 cursor-pointer">
           <Link href={`/articles/${article.slug}`}>{article.title}</Link>
-          <span className="shrink-0 text-sm md:text-base font-serif text-[#9E9E9E]">
-            阅读 {article.viewCount}
+          <span className="shrink-0 inline-flex items-center gap-1.5 text-sm md:text-base font-serif text-[#9E9E9E]">
+            <BookOpen className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden="true" />
+            <span>{article.viewCount}</span>
           </span>
         </h3>
 
