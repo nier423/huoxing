@@ -25,7 +25,6 @@ interface CreateArticleInput {
   author: string
   category: string
   content: string
-  excerpt: string
   publishNow: boolean
   slug: string
   title: string
@@ -145,70 +144,28 @@ async function buildUniqueSlug(baseSlug: string) {
   }
 }
 
-async function insertArticleWithFallbacks(payload: {
+async function insertArticle(payload: {
   author: string
   category: string
   content: string
-  excerpt: string
   isPublished: boolean
-  publishedAt: string | null
   slug: string
   title: string
 }) {
   const adminClient = createAdminClient()
-  const attempts = [
-    {
+  return adminClient
+    .from('articles')
+    .insert({
       title: payload.title,
       slug: payload.slug,
-      excerpt: payload.excerpt,
-      content_html: payload.content,
+      content: payload.content,
       author_name: payload.author,
       category: payload.category,
       is_published: payload.isPublished,
-      published_at: payload.publishedAt,
       view_count: 0,
-    },
-    {
-      title: payload.title,
-      slug: payload.slug,
-      excerpt: payload.excerpt,
-      content: payload.content,
-      author: payload.author,
-      category: payload.category,
-      is_published: payload.isPublished,
-      published_at: payload.publishedAt,
-      view_count: 0,
-    },
-    {
-      title: payload.title,
-      slug: payload.slug,
-      summary: payload.excerpt,
-      body: payload.content,
-      author: payload.author,
-      section: payload.category,
-      is_published: payload.isPublished,
-      published_at: payload.publishedAt,
-      view_count: 0,
-    },
-  ]
-
-  let lastError: { message?: string } | null = null
-
-  for (const attempt of attempts) {
-    const { data, error } = await adminClient
-      .from('articles')
-      .insert(attempt)
-      .select('*')
-      .single()
-
-    if (!error && data) {
-      return { data, error: null }
-    }
-
-    lastError = error
-  }
-
-  return { data: null, error: lastError }
+    })
+    .select('*')
+    .single()
 }
 
 export async function getAdminArticles(): Promise<
@@ -261,12 +218,11 @@ export async function createAdminArticle(
 
     const title = input.title.trim()
     const author = input.author.trim()
-    const excerpt = input.excerpt.trim()
     const content = input.content.trim()
     const category = input.category.trim()
     const normalizedSlug = normalizeSlug(input.slug || input.title)
 
-    if (!title || !author || !excerpt || !content || !category) {
+    if (!title || !author || !content || !category) {
       return {
         success: false,
         message: '请填写所有必填字段。',
@@ -283,16 +239,13 @@ export async function createAdminArticle(
     }
 
     const uniqueSlug = await buildUniqueSlug(normalizedSlug)
-    const publishedAt = input.publishNow ? new Date().toISOString() : null
-    const { data, error } = await insertArticleWithFallbacks({
+    const { data, error } = await insertArticle({
       title,
       slug: uniqueSlug,
-      excerpt,
       content,
       author,
       category,
       isPublished: input.publishNow,
-      publishedAt,
     })
 
     if (error || !data) {

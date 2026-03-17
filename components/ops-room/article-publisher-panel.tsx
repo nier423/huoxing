@@ -59,7 +59,6 @@ export default function ArticlePublisherPanel() {
   const [slug, setSlug] = useState('')
   const [author, setAuthor] = useState('')
   const [category, setCategory] = useState(ARTICLE_CATEGORIES[0])
-  const [excerpt, setExcerpt] = useState('')
   const [content, setContent] = useState('')
   const [publishNow, setPublishNow] = useState(true)
 
@@ -106,7 +105,6 @@ export default function ArticlePublisherPanel() {
     setSlug('')
     setAuthor('')
     setCategory(ARTICLE_CATEGORIES[0])
-    setExcerpt('')
     setContent('')
     setPublishNow(true)
   }
@@ -122,7 +120,6 @@ export default function ArticlePublisherPanel() {
       slug,
       author,
       category,
-      excerpt,
       content,
       publishNow,
     })
@@ -251,20 +248,6 @@ export default function ArticlePublisherPanel() {
                   ))}
                 </select>
               </div>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-youyou text-[#5D5D5D]">
-                摘要
-              </label>
-              <textarea
-                value={excerpt}
-                onChange={(event) => setExcerpt(event.target.value)}
-                required
-                rows={4}
-                className="w-full rounded-2xl border border-[#E8E4DF] bg-[#F7F5F0] px-4 py-3 text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
-                placeholder="用于首页与栏目页展示的简短摘要。"
-              />
             </div>
 
             <div>
