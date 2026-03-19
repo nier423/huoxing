@@ -1,70 +1,76 @@
 import Link from "next/link";
-import { BookOpen } from "lucide-react";
-import type { Article } from "@/lib/articles";
+import type { Article, Issue } from "@/lib/articles";
+import { getIssueDisplayTitle } from "@/lib/issue-display";
+import ArticleCard from "@/components/ArticleCard";
+import IssueBadge from "@/components/IssueBadge";
 
 interface FeedProps {
   articles: Article[];
+  issue?: Issue | null;
 }
 
-function formatDate(input: string): string {
-  const date = new Date(input);
-  if (Number.isNaN(date.getTime())) return input;
-
-  return new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
-
-export default function Feed({ articles }: FeedProps) {
+export default function Feed({ articles, issue = null }: FeedProps) {
   return (
-    <section className="py-24 px-4 md:px-8 bg-[#F7F5F0]">
-      <div className="max-w-6xl mx-auto space-y-24">
-        <h2 className="font-youyou text-4xl md:text-5xl text-center mb-16 text-[#3A3A3A] tracking-[0.2em] relative inline-block left-1/2 -translate-x-1/2 after:content-[''] after:absolute after:-bottom-4 after:left-1/2 after:-translate-x-1/2 after:w-12 after:h-[1px] after:bg-[#A1887F]">
-          最新故事
-        </h2>
+    <section className="bg-white/0 px-6 py-20 lg:py-28 md:px-12 lg:px-24">
+      <div className="mx-auto max-w-7xl space-y-16">
+        
+        {/* Header Section */}
+        <div className="flex flex-col gap-10 md:flex-row md:items-end md:justify-between border-b border-[#E3D8D0]/60 pb-12 mb-16 lg:mb-24">
+          <div className="space-y-6">
+            <div className="flex items-center gap-4 opacity-0 animate-[fadeInUp_0.8s_ease-out_forwards]">
+              <span className="h-2 w-2 rounded-full bg-[#CFAF9D] shadow-[0_0_10px_rgba(207,175,157,0.5)]" />
+              <p className="text-xs uppercase tracking-[0.4em] text-[#9C7D71] font-medium">
+                Current Issue
+              </p>
+              <IssueBadge label={issue?.label} />
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-20">
-          {articles.map((article) => (
-            <ArticleCard key={article.id} article={article} />
-          ))}
+            <h2 className="font-youyou text-4xl text-[#26211E] md:text-5xl xl:text-[3.5rem] leading-none opacity-0 animate-[fadeInUp_0.8s_ease-out_0.2s_forwards] font-bold">
+              {getIssueDisplayTitle(issue)}
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-4 text-sm text-[#7C746D] opacity-0 animate-[fadeInUp_0.8s_ease-out_0.4s_forwards] pb-2">
+            {issue && (
+              <Link
+                href={`/issues/${issue.slug}`}
+                className="inline-flex items-center rounded-full border border-[#D7CCC8] px-6 py-2.5 transition-all duration-300 hover:bg-[#A1887F] hover:text-white hover:border-[#A1887F] hover:shadow-[0_8px_20px_rgba(161,136,127,0.3)] hover:-translate-y-[2px]"
+              >
+                查看本期
+              </Link>
+            )}
+
+            <Link
+              href="/issues"
+              className="inline-flex items-center rounded-full border border-[#D7CCC8] px-6 py-2.5 transition-all duration-300 hover:bg-[#A1887F] hover:text-white hover:border-[#A1887F] hover:shadow-[0_8px_20px_rgba(161,136,127,0.3)] hover:-translate-y-[2px]"
+            >
+              往期归档
+            </Link>
+          </div>
         </div>
+
+        {/* Content Section */}
+        {articles.length === 0 ? (
+          <div className="rounded-[2rem] border border-[#E8E4DF] bg-[#FDFCF9] px-8 py-20 text-center text-[#8D8D8D] font-serif text-lg opacity-0 animate-[fadeInUp_0.8s_ease-out_0.6s_forwards]">
+            当前刊还没有已发布文章，敬请期待。
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-x-16 lg:gap-x-24 gap-y-24 md:grid-cols-2 relative">
+            {/* Elegant vertical divider for desktop */}
+            <div className="absolute left-1/2 top-8 bottom-8 w-[1px] bg-gradient-to-b from-transparent via-[#E3D8D0]/60 to-transparent hidden md:block -translate-x-1/2 pointer-events-none" />
+            
+            {articles.map((article, index) => (
+              <div 
+                key={article.id} 
+                className="opacity-0 animate-[fadeInUp_0.8s_ease-out_forwards]"
+                style={{ animationDelay: `${index * 150 + 600}ms` }}
+              >
+                <ArticleCard article={article} />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
-  );
-}
-
-function ArticleCard({ article }: { article: Article }) {
-  return (
-    <article className="group relative flex flex-col gap-6">
-      <div className="flex items-center justify-between text-xs font-medium tracking-[0.2em] text-[#9E9E9E] uppercase border-b border-[#D7CCC8]/30 pb-3">
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 bg-[#A1887F] rounded-full opacity-60" />
-          <span className="text-[#A1887F]">{article.category}</span>
-        </div>
-        <span className="font-serif">{formatDate(article.publishedAt)}</span>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="flex items-start justify-between gap-4 font-youyou text-3xl md:text-4xl text-[#2C2C2C] leading-snug group-hover:text-[#A1887F] transition-colors duration-500 cursor-pointer">
-          <Link href={`/articles/${article.slug}`}>{article.title}</Link>
-          <span className="shrink-0 inline-flex items-center gap-1.5 text-sm md:text-base font-serif text-[#9E9E9E]">
-            <BookOpen className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden="true" />
-            <span>{article.viewCount}</span>
-          </span>
-        </h3>
-
-        <p className="font-serif text-[#5D5D5D] leading-loose text-base md:text-lg line-clamp-3 opacity-90 group-hover:opacity-100 transition-opacity">
-          {article.excerpt}
-        </p>
-      </div>
-
-      <div className="pt-2 flex items-center justify-between">
-        <span className="text-sm text-[#9E9E9E] font-serif italic border-b border-transparent hover:border-[#D7CCC8] transition-colors cursor-pointer">
-          作者：{article.author}
-        </span>
-      </div>
-    </article>
   );
 }

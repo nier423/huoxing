@@ -8,5 +8,5 @@ interface PageProps {
 
 export default function ArticlePage({ params }: PageProps) {
   const slug = decodeURIComponent(params.slug);
-  return <ArticleDetail slug={slug} backHref="/" />;
+  return <ArticleDetail slug={slug} />;
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Menu, PenLine, PenSquare, X } from "lucide-react";
+import { Archive, Menu, PenLine, PenSquare, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import UserMenu from "./UserMenu";
 
@@ -18,6 +18,12 @@ const navItems = [
   { name: "胡说八道", href: "/nonsense" },
   { name: "三行两句", href: "/poems" },
   { name: "见字如面", href: "/letters" },
+];
+
+const utilityItems = [
+  { name: "投稿", href: "/submit", icon: PenSquare },
+  { name: "归档", href: "/issues", icon: Archive },
+  { name: "关于我们", href: "/about", icon: PenLine },
 ];
 
 export default function Navbar() {
@@ -135,14 +141,12 @@ export default function Navbar() {
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-[#D7CCC8]/30 bg-[#F7F5F0]/80 backdrop-blur-sm transition-all duration-300">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
-        <div className="flex-shrink-0">
-          <Link
-            href="/"
-            className="font-youyou text-2xl tracking-widest text-[#3A3A3A] transition-opacity hover:opacity-80 md:text-3xl"
-          >
-            星火
-          </Link>
-        </div>
+        <Link
+          href="/"
+          className="flex-shrink-0 font-youyou text-2xl tracking-widest text-[#3A3A3A] transition-opacity hover:opacity-80 md:text-3xl"
+        >
+          星火
+        </Link>
 
         <div className="hidden items-center space-x-8 md:flex lg:space-x-12">
           {navItems.map((item) => (
@@ -158,21 +162,22 @@ export default function Navbar() {
         </div>
 
         <div className="hidden items-center space-x-6 md:flex lg:space-x-8">
-          <Link
-            href="/submit"
-            className="group flex items-center space-x-2 text-[#5D5D5D] transition-colors duration-300 hover:text-[#A1887F]"
-          >
-            <PenSquare className="h-3.5 w-3.5 md:h-4 md:w-4" strokeWidth={1.5} />
-            <span className="text-xs font-youyou tracking-wide md:text-sm">投稿</span>
-          </Link>
+          {utilityItems.map((item) => {
+            const Icon = item.icon;
 
-          <Link
-            href="/contact"
-            className="group flex items-center space-x-2 text-[#5D5D5D] transition-colors duration-300 hover:text-[#A1887F]"
-          >
-            <PenLine className="h-3.5 w-3.5 md:h-4 md:w-4" strokeWidth={1.5} />
-            <span className="text-xs font-youyou tracking-wide md:text-sm">联系我们</span>
-          </Link>
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className="group flex items-center space-x-2 text-[#5D5D5D] transition-colors duration-300 hover:text-[#A1887F]"
+              >
+                <Icon className="h-3.5 w-3.5 md:h-4 md:w-4" strokeWidth={1.5} />
+                <span className="text-xs font-youyou tracking-wide md:text-sm">
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
 
           {loading ? (
             <div className="h-8 w-8 animate-pulse rounded-full bg-[#E8E4DF]" />
@@ -181,7 +186,7 @@ export default function Navbar() {
           ) : (
             <Link
               href="/login"
-              className="rounded-full border border-[#D7CCC8] px-3 py-1 text-xs font-youyou tracking-wide text-[#5D5D5D] transition-all duration-300 hover:bg-[#EFEBE9] hover:text-[#3A3A3A] md:px-5 md:py-1.5 md:text-sm"
+              className="rounded-full border border-[#D7CCC8] px-3 py-1 text-xs font-youyou tracking-wide text-[#5D5D5D] transition-all duration-300 hover:bg-[#A1887F] hover:text-white hover:border-[#A1887F] hover:shadow-md hover:-translate-y-[2px] md:px-5 md:py-1.5 md:text-sm"
             >
               登录 / 加入
             </Link>
@@ -204,16 +209,16 @@ export default function Navbar() {
         </button>
       </div>
 
-      {isMobileMenuOpen && (
+      {isMobileMenuOpen ? (
         <button
           type="button"
           className="fixed inset-0 top-20 bg-[#3A3A3A]/40 md:hidden"
           aria-label="关闭菜单遮罩"
           onClick={closeMobileMenu}
         />
-      )}
+      ) : null}
 
-      {isMobileMenuOpen && (
+      {isMobileMenuOpen ? (
         <div
           id="mobile-navigation-drawer"
           role="dialog"
@@ -236,23 +241,23 @@ export default function Navbar() {
             </div>
 
             <div className="mt-8 flex flex-col gap-4 border-t border-[#D7CCC8]/50 pt-6">
-              <Link
-                href="/submit"
-                onClick={closeMobileMenu}
-                className="group inline-flex items-center space-x-2 text-[#5D5D5D] transition-colors duration-300 hover:text-[#A1887F]"
-              >
-                <PenSquare className="h-4 w-4" strokeWidth={1.5} />
-                <span className="text-sm font-youyou tracking-wide">投稿</span>
-              </Link>
+              {utilityItems.map((item) => {
+                const Icon = item.icon;
 
-              <Link
-                href="/contact"
-                onClick={closeMobileMenu}
-                className="group inline-flex items-center space-x-2 text-[#5D5D5D] transition-colors duration-300 hover:text-[#A1887F]"
-              >
-                <PenLine className="h-4 w-4" strokeWidth={1.5} />
-                <span className="text-sm font-youyou tracking-wide">联系我们</span>
-              </Link>
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={closeMobileMenu}
+                    className="group inline-flex items-center space-x-2 text-[#5D5D5D] transition-colors duration-300 hover:text-[#A1887F]"
+                  >
+                    <Icon className="h-4 w-4" strokeWidth={1.5} />
+                    <span className="text-sm font-youyou tracking-wide">
+                      {item.name}
+                    </span>
+                  </Link>
+                );
+              })}
 
               {loading ? (
                 <div className="h-8 w-8 animate-pulse rounded-full bg-[#E8E4DF]" />
@@ -263,7 +268,9 @@ export default function Navbar() {
                       {user.displayName ? user.displayName.charAt(0).toUpperCase() : "?"}
                     </div>
                     <div>
-                      <p className="text-sm font-youyou text-[#3A3A3A]">{user.displayName}</p>
+                      <p className="text-sm font-youyou text-[#3A3A3A]">
+                        {user.displayName}
+                      </p>
                       <p className="text-xs text-[#8D8D8D]">{user.email}</p>
                     </div>
                   </div>
@@ -284,7 +291,7 @@ export default function Navbar() {
                 <Link
                   href="/login"
                   onClick={closeMobileMenu}
-                  className="inline-flex justify-center rounded-full border border-[#D7CCC8] px-5 py-2 text-sm font-youyou tracking-wide text-[#5D5D5D] transition-all duration-300 hover:bg-[#EFEBE9] hover:text-[#3A3A3A]"
+                  className="inline-flex justify-center rounded-full border border-[#D7CCC8] px-5 py-2 text-sm font-youyou tracking-wide text-[#5D5D5D] transition-all duration-300 hover:bg-[#A1887F] hover:text-white hover:border-[#A1887F] hover:shadow-md hover:-translate-y-[2px]"
                 >
                   登录 / 加入
                 </Link>
@@ -292,7 +299,7 @@ export default function Navbar() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </nav>
   );
 }

@@ -1,0 +1,73 @@
+import Link from "next/link";
+import { ArrowRight, BookOpen } from "lucide-react";
+import type { Article } from "@/lib/articles";
+import IssueBadge from "@/components/IssueBadge";
+
+interface ArticleCardProps {
+  article: Article;
+  showReadMore?: boolean;
+}
+
+function formatDate(input: string): string {
+  const date = new Date(input);
+
+  if (Number.isNaN(date.getTime())) {
+    return input;
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+export default function ArticleCard({
+  article,
+  showReadMore = false,
+}: ArticleCardProps) {
+  return (
+    <article className="group relative flex flex-col gap-8 rounded-3xl p-6 md:p-8 -mx-6 md:-mx-8 transition-all duration-700 hover:bg-[#FDFCF9] hover:shadow-[0_20px_60px_rgba(0,0,0,0.03)] hover:-translate-y-2 ring-1 ring-transparent hover:ring-[#E3D8D0]/40">
+      <div className="flex items-center justify-between border-b border-[#E3D8D0]/40 pb-4 text-xs font-medium uppercase tracking-[0.3em] text-[#9E9E9E]">
+        <div className="flex items-center gap-4">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#CFAF9D] shadow-sm transform group-hover:scale-150 transition-transform duration-500" />
+          <span className="text-[#A58B7E] tracking-[0.4em]">{article.category}</span>
+          <IssueBadge label={article.issue?.label} />
+        </div>
+        <span className="font-serif tracking-[0.1em]">{formatDate(article.publishedAt)}</span>
+      </div>
+
+      <div className="space-y-6">
+        <h2 className="flex items-start justify-between gap-6 font-youyou text-[2rem] md:text-[2.25rem] lg:text-[2.5rem] leading-[1.3] text-[#2C2C2C] transition-colors duration-500 group-hover:text-[#A1887F]">
+          <Link href={`/articles/${article.slug}`} className="before:absolute before:inset-0">
+            {article.title}
+          </Link>
+          <span className="inline-flex shrink-0 items-center gap-2 text-sm font-serif text-[#9E9E9E] translate-y-2">
+            <BookOpen className="h-4 w-4 opacity-60" aria-hidden="true" />
+            <span className="tracking-wider">{article.viewCount}</span>
+          </span>
+        </h2>
+
+        <p className="line-clamp-3 font-serif text-lg md:text-xl leading-[2] text-[#5A504A] opacity-80 transition-opacity duration-500 group-hover:opacity-100">
+          {article.excerpt}
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between pt-4 mt-auto">
+        <span className="text-sm font-serif italic text-[#8A7A73] tracking-[0.1em]">
+          作者：<span className="font-medium text-[#5A504A]">{article.author}</span>
+        </span>
+
+        {showReadMore ? (
+          <Link
+            href={`/articles/${article.slug}`}
+            className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-[#A1887F] opacity-0 -translate-x-4 transition-all duration-700 group-hover:translate-x-0 group-hover:opacity-100 z-10"
+          >
+            <span>阅读全文</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        ) : null}
+      </div>
+    </article>
+  );
+}

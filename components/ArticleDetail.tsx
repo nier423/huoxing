@@ -3,20 +3,25 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import EchoSection from "@/components/EchoSection";
+import IssueBadge from "@/components/IssueBadge";
 import ViewTracker from "@/components/ViewTracker";
-import { getArticleBySlug } from "@/lib/articles";
 import { fetchEchoes } from "@/app/actions/echoes";
+import { getArticleBySlug, getIssueHref } from "@/lib/articles";
 import { createClient } from "@/lib/supabase/server";
 
 interface ArticleDetailProps {
   slug: string;
-  backHref: string;
+  backHref?: string;
+  backLabel?: string;
   fallbackCategory?: string;
 }
 
 function formatDate(input: string): string {
   const date = new Date(input);
-  if (Number.isNaN(date.getTime())) return input;
+
+  if (Number.isNaN(date.getTime())) {
+    return input;
+  }
 
   return new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
@@ -40,6 +45,7 @@ function toParagraphs(input: string): string[] {
 export default async function ArticleDetail({
   slug,
   backHref,
+  backLabel,
   fallbackCategory = "未分类",
 }: ArticleDetailProps) {
   const article = await getArticleBySlug(slug);
@@ -56,65 +62,83 @@ export default async function ArticleDetail({
   const category = article.category || fallbackCategory;
   const plainTextParagraphs = toParagraphs(article.content);
   const shouldUseHtml = hasHtmlTags(article.content);
+  const resolvedBackHref = backHref ?? getIssueHref(article.issue);
+  const resolvedBackLabel = backLabel ?? (article.issue ? "返回本期" : "返回列表");
 
   return (
     <main className="min-h-screen bg-[#F7F5F0]">
       <Navbar />
       <ViewTracker articleId={article.id} />
 
-      <article className="pt-32 pb-24 px-4 md:px-8 max-w-3xl mx-auto animate-fade-in">
+      <article className="mx-auto max-w-3xl animate-fade-in px-4 pb-24 pt-32 md:px-8">
         <Link
-          href={backHref}
-          className="inline-flex items-center text-[#9E9E9E] hover:text-[#A1887F] transition-colors mb-12 group"
+          href={resolvedBackHref}
+          className="group mb-12 inline-flex items-center text-[#9E9E9E] transition-colors hover:text-[#A1887F]"
         >
-          <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
-          <span className="text-sm font-serif tracking-widest">返回列表</span>
+          <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
+          <span className="text-sm font-serif tracking-widest">{resolvedBackLabel}</span>
         </Link>
 
-        <header className="text-center mb-16 space-y-6">
-          <div className="flex items-center justify-center gap-3 text-xs text-[#A1887F] font-medium tracking-[0.2em] uppercase">
-            <span className="w-1.5 h-1.5 bg-[#A1887F] rounded-full opacity-60" />
+        <header className="mb-16 space-y-6 text-center">
+          <div className="flex items-center justify-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-[#A1887F]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#A1887F] opacity-60" />
             <span>{category}</span>
+            <IssueBadge label={article.issue?.label} />
           </div>
 
-          <h1 className="font-youyou text-4xl md:text-5xl lg:text-6xl text-[#2C2C2C] leading-tight">
+          <h1 className="font-youyou text-4xl leading-tight text-[#2C2C2C] md:text-5xl lg:text-6xl">
             {article.title}
           </h1>
 
-          <div className="flex items-center justify-center gap-4 text-sm text-[#9E9E9E] font-serif italic pt-4">
+          <div className="flex items-center justify-center gap-4 pt-4 text-sm font-serif italic text-[#9E9E9E]">
             <span>作者：{article.author}</span>
-            <span className="w-1 h-1 bg-[#D7CCC8] rounded-full" />
+            <span className="h-1 w-1 rounded-full bg-[#D7CCC8]" />
             <span>{formatDate(article.publishedAt)}</span>
           </div>
         </header>
 
         {shouldUseHtml ? (
           <div
-            className="prose prose-stone prose-lg mx-auto font-serif text-[#3A3A3A] leading-loose
+            className="prose prose-stone prose-lg mx-auto font-serif leading-loose text-[#3A3A3A]
               prose-p:mb-8 prose-p:indent-8 prose-headings:font-youyou prose-headings:text-[#2C2C2C]
               prose-a:text-[#A1887F] prose-a:no-underline hover:prose-a:text-[#8D6E63]
               prose-blockquote:border-l-[#D7CCC8] prose-blockquote:text-[#757575] prose-blockquote:italic
-              prose-strong:text-[#5D5D5D] prose-strong:font-normal"
+              prose-strong:font-normal prose-strong:text-[#5D5D5D]"
             dangerouslySetInnerHTML={{ __html: article.content }}
           />
         ) : (
-          <div className="mx-auto font-serif text-[#3A3A3A] leading-loose text-lg">
+          <div className="mx-auto font-serif text-lg leading-loose text-[#3A3A3A]">
             {plainTextParagraphs.map((paragraph, index) => (
-              <p key={`${index}-${paragraph.slice(0, 12)}`} className="mb-8 indent-8 whitespace-pre-wrap">
+              <p
+                key={`${index}-${paragraph.slice(0, 12)}`}
+                className="mb-8 whitespace-pre-wrap indent-8"
+              >
                 {paragraph}
               </p>
             ))}
           </div>
         )}
 
+        {article.issue ? (
+          <div className="mt-12 flex justify-center">
+            <Link
+              href={getIssueHref(article.issue)}
+              className="inline-flex items-center rounded-full border border-[#D7CCC8] px-5 py-2 text-sm text-[#7C746D] transition-colors hover:border-[#A1887F] hover:text-[#A1887F]"
+            >
+              返回 {article.issue.label} 专题页
+            </Link>
+          </div>
+        ) : null}
+
         <EchoSection articleId={article.id} isLoggedIn={Boolean(user)} initialEchoes={echoes} />
 
-        <div className="mt-16 pt-10 border-t border-[#D7CCC8]/30 text-center">
-          <div className="w-8 h-8 mx-auto bg-[#EFEBE9] rounded-full flex items-center justify-center mb-6">
-            <span className="w-1.5 h-1.5 bg-[#A1887F] rounded-full" />
+        <div className="mt-16 border-t border-[#D7CCC8]/30 pt-10 text-center">
+          <div className="mx-auto mb-6 flex h-8 w-8 items-center justify-center rounded-full bg-[#EFEBE9]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#A1887F]" />
           </div>
-          <p className="font-youyou text-[#A1887F] text-lg tracking-widest opacity-80">
-            星火 · {category}
+          <p className="font-youyou text-lg tracking-widest text-[#A1887F] opacity-80">
+            星火 · {article.issue?.label ? `${article.issue.label} · ` : ""}
+            {category}
           </p>
         </div>
       </article>
