@@ -70,7 +70,7 @@ export default async function ArticleDetail({
       <Navbar />
       <ViewTracker articleId={article.id} />
 
-      <article className="mx-auto max-w-3xl animate-fade-in px-4 pb-24 pt-32 md:px-8">
+      <article className="mx-auto max-w-3xl animate-fade-in px-4 pb-24 pt-24 md:pt-32 md:px-8">
         <Link
           href={resolvedBackHref}
           className="group mb-12 inline-flex items-center text-[#9E9E9E] transition-colors hover:text-[#A1887F]"
@@ -79,7 +79,7 @@ export default async function ArticleDetail({
           <span className="text-sm font-serif tracking-widest">{resolvedBackLabel}</span>
         </Link>
 
-        <header className="mb-16 space-y-6 text-center">
+        <header className="mb-10 md:mb-16 space-y-6 text-center">
           <div className="flex items-center justify-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-[#A1887F]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#A1887F] opacity-60" />
             <span>{category}</span>
@@ -99,7 +99,7 @@ export default async function ArticleDetail({
 
         {shouldUseHtml ? (
           <div
-            className="prose prose-stone prose-lg mx-auto font-serif leading-loose text-[#3A3A3A]
+            className="prose prose-stone mx-auto md:prose-lg font-serif leading-loose text-[#3A3A3A]
               prose-p:mb-8 prose-p:indent-8 prose-headings:font-youyou prose-headings:text-[#2C2C2C]
               prose-a:text-[#A1887F] prose-a:no-underline hover:prose-a:text-[#8D6E63]
               prose-blockquote:border-l-[#D7CCC8] prose-blockquote:text-[#757575] prose-blockquote:italic
@@ -107,7 +107,7 @@ export default async function ArticleDetail({
             dangerouslySetInnerHTML={{ __html: article.content }}
           />
         ) : (
-          <div className="mx-auto font-serif text-lg leading-loose text-[#3A3A3A]">
+          <div className="mx-auto font-serif text-base md:text-lg leading-loose text-[#3A3A3A]">
             {plainTextParagraphs.map((paragraph, index) => (
               <p
                 key={`${index}-${paragraph.slice(0, 12)}`}

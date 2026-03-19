@@ -11,7 +11,7 @@ export default function Hero({ coverImage }: HeroProps) {
   const posterSrc = coverImage || "/poster.jpg";
 
   return (
-    <section className="relative min-h-[90vh] flex flex-col justify-center items-center px-4 md:px-8 lg:px-12 xl:px-24 text-center lg:text-left bg-[#F7F5F0] overflow-hidden pb-16 lg:pb-0 pt-20 lg:pt-0">
+    <section className="relative min-h-[85vh] flex flex-col justify-center items-center px-4 md:px-8 lg:px-12 xl:px-24 text-center lg:text-left bg-[#F7F5F0] overflow-hidden pb-16 lg:pb-0 pt-20 lg:pt-0">
       {/* Background Texture */}
       <div className="absolute inset-0 paper-texture opacity-30 pointer-events-none" />
 
@@ -20,10 +20,10 @@ export default function Hero({ coverImage }: HeroProps) {
         
         {/* Left: Typography */}
         <div className="flex flex-col justify-center w-full mx-auto max-w-xl lg:max-w-max lg:ml-auto lg:pr-4 xl:pr-8 transform lg:translate-x-8 xl:translate-x-12 z-20">
-          <h1 className="font-liuye text-5xl sm:text-6xl md:text-7xl lg:text-[5.5rem] xl:text-[7rem] leading-[1.15] opacity-95 tracking-tight text-center lg:text-left">
+          <h1 className="font-liuye text-4xl sm:text-5xl md:text-7xl lg:text-[5.5rem] xl:text-[7rem] leading-[1.15] opacity-95 tracking-tight text-center lg:text-left">
             <span className="inline-block whitespace-nowrap">让女性书写女性</span>
             <br />
-            <span className="inline-block mt-4 md:mt-6 text-[#5D5D5D] opacity-80 text-4xl sm:text-5xl md:text-6xl lg:text-[4.5rem] xl:text-[6rem] whitespace-nowrap">
+            <span className="inline-block mt-4 md:mt-6 text-[#5D5D5D] opacity-80 text-3xl sm:text-4xl md:text-6xl lg:text-[4.5rem] xl:text-[6rem] whitespace-nowrap">
               让女性讲述女性
             </span>
           </h1>
@@ -40,7 +40,7 @@ export default function Hero({ coverImage }: HeroProps) {
 
         {/* Right: The Poster Card */}
         <div className="flex flex-col justify-center items-center w-full opacity-0 animate-[fadeInUp_0.8s_ease-out_0.6s_forwards] mx-auto z-10 h-full mt-12 lg:mt-20">
-          <div className="relative w-full max-w-[260px] sm:max-w-[280px] md:max-w-[320px] lg:max-w-[340px] xl:max-w-[360px]">
+          <div className="relative w-full max-w-[220px] sm:max-w-[280px] md:max-w-[320px] lg:max-w-[340px] xl:max-w-[360px]">
             {/* Ambient Glow */}
             <div className="absolute inset-0 bg-gradient-to-tr from-[#A1887F]/15 via-[#C83E4D]/5 to-transparent rounded-full blur-[60px] scale-[1.3] -z-10" />
             

@@ -38,7 +38,7 @@ export default function ArticleCard({
       </div>
 
       <div className="space-y-6">
-        <h2 className="flex items-start justify-between gap-6 font-youyou text-[2rem] md:text-[2.25rem] lg:text-[2.5rem] leading-[1.3] text-[#2C2C2C] transition-colors duration-500 group-hover:text-[#A1887F]">
+        <h2 className="flex items-start justify-between gap-6 font-youyou text-[1.75rem] md:text-[2.25rem] lg:text-[2.5rem] leading-[1.3] text-[#2C2C2C] transition-colors duration-500 group-hover:text-[#A1887F]">
           <Link href={`/articles/${article.slug}`} className="before:absolute before:inset-0">
             {article.title}
           </Link>

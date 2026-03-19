@@ -11,7 +11,7 @@ interface FeedProps {
 
 export default function Feed({ articles, issue = null }: FeedProps) {
   return (
-    <section className="bg-white/0 px-6 py-20 lg:py-28 md:px-12 lg:px-24">
+    <section className="bg-white/0 px-6 py-12 md:py-20 lg:py-28 md:px-12 lg:px-24">
       <div className="mx-auto max-w-7xl space-y-16">
         
         {/* Header Section */}
@@ -55,7 +55,7 @@ export default function Feed({ articles, issue = null }: FeedProps) {
             当前刊还没有已发布文章，敬请期待。
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-x-16 lg:gap-x-24 gap-y-24 md:grid-cols-2 relative">
+          <div className="grid grid-cols-1 gap-x-16 lg:gap-x-24 gap-y-16 md:gap-y-24 md:grid-cols-2 relative">
             {/* Elegant vertical divider for desktop */}
             <div className="absolute left-1/2 top-8 bottom-8 w-[1px] bg-gradient-to-b from-transparent via-[#E3D8D0]/60 to-transparent hidden md:block -translate-x-1/2 pointer-events-none" />
             

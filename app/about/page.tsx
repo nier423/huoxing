@@ -42,7 +42,7 @@ export default function AboutPage() {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative pt-40 pb-24 lg:pt-52 lg:pb-32 overflow-hidden">
+      <section className="relative pt-32 pb-16 md:pt-40 md:pb-24 lg:pt-52 lg:pb-32 overflow-hidden">
         {/* Animated breathing background */}
         <div className="absolute inset-0 z-0 pointer-events-none">
            <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-[radial-gradient(circle,rgba(153,96,189,0.06)_0%,transparent_70%)] animate-pulse" style={{ animationDuration: '6s' }} />
