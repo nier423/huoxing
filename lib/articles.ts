@@ -6,7 +6,6 @@ export interface Issue {
   slug: string;
   label: string;
   title: string;
-  description: string;
   coverImage: string | null;
   isCurrent: boolean;
   sortOrder: number;
@@ -52,7 +51,6 @@ const ISSUE_SELECT = `
   slug,
   label,
   title,
-  description,
   cover_image,
   is_current,
   sort_order,
@@ -170,7 +168,6 @@ function mapIssue(row: RawIssueRow | null | undefined): Issue | null {
     slug: toText(row.slug),
     label: toText(row.label),
     title: toText(row.title),
-    description: toText(row.description),
     coverImage: toText(row.cover_image) || null,
     isCurrent: Boolean(row.is_current),
     sortOrder: Number(row.sort_order ?? 0),
