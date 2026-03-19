@@ -191,7 +191,7 @@ export default function AboutPage() {
             </div>
             
             <p className="max-w-2xl font-serif text-lg leading-loose text-[#D3C8C1] md:text-xl opacity-80">
-              商务合作、读者群、志愿者招募……如果你想从另一个入口靠近星火，随时可以写信给我们。
+              商务合作、读者群、志愿者招募、任何建议和意见...如果你想从另一个入口靠近星火，可以直接写信给我们。
             </p>
 
             <div className="pt-12 flex flex-col items-center">
