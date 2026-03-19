@@ -11,15 +11,15 @@ export default function Hero({ coverImage }: HeroProps) {
   const posterSrc = coverImage || "/poster.jpg";
 
   return (
-    <section className="relative h-[100svh] w-full flex flex-col justify-center items-center px-6 md:px-8 lg:px-12 xl:px-24 bg-[#F7F5F0] overflow-hidden pt-12 lg:pt-0">
+    <section className="relative min-h-[100svh] md:h-[100svh] w-full flex flex-col justify-center items-center px-6 md:px-8 lg:px-12 xl:px-24 bg-[#F7F5F0] overflow-hidden pt-28 md:pt-12 lg:pt-0 pb-20 md:pb-0">
       {/* Background Texture */}
       <div className="absolute inset-0 paper-texture opacity-30 pointer-events-none" />
 
       {/* Main Content Grid */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto h-full flex flex-col lg:grid lg:grid-cols-2 lg:gap-8 justify-center lg:items-center">
+      <div className="relative z-10 w-full max-w-7xl mx-auto h-full flex flex-col lg:grid lg:grid-cols-2 gap-10 lg:gap-8 justify-center lg:items-center">
         
-        {/* Typography (Floats top-left on mobile) */}
-        <div className="flex flex-col justify-center w-full z-30 relative text-left transform lg:translate-x-8 xl:translate-x-12 -translate-y-[15vh] lg:translate-y-0">
+        {/* Typography */}
+        <div className="flex flex-col justify-center w-full z-30 relative text-left transform lg:translate-x-8 xl:translate-x-12">
           <h1 className="font-liuye text-[2.75rem] sm:text-5xl md:text-6xl lg:text-[5.5rem] xl:text-[7rem] leading-[1.15] opacity-95 tracking-tight drop-shadow-sm">
             <span className="inline-block whitespace-nowrap">让女性书写女性</span>
             <br />
@@ -38,14 +38,14 @@ export default function Hero({ coverImage }: HeroProps) {
           </div>
         </div>
 
-        {/* The Poster Card (Floats bottom-right on mobile) */}
-        <div className="absolute -right-6 -bottom-12 sm:-right-4 sm:-bottom-8 lg:relative lg:right-auto lg:bottom-auto w-[65vw] max-w-[280px] sm:max-w-[320px] lg:max-w-[340px] xl:max-w-[360px] opacity-0 animate-[fadeInUp_0.8s_ease-out_0.6s_forwards] z-20 flex justify-end lg:justify-center lg:h-full lg:mt-20 lg:w-full lg:mx-auto">
+        {/* The Poster Card */}
+        <div className="relative w-[75vw] max-w-[280px] sm:max-w-[320px] lg:max-w-[340px] xl:max-w-[360px] opacity-0 animate-[fadeInUp_0.8s_ease-out_0.6s_forwards] z-20 flex justify-center lg:items-center lg:w-full lg:mx-auto ml-auto mr-4 md:mr-auto">
           <div className="relative w-full">
             {/* Ambient Glow */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#A1887F]/40 via-[#C83E4D]/20 to-transparent rounded-full blur-[40px] scale-[1.2] -z-10" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-[#A1887F]/30 via-[#C83E4D]/20 to-transparent rounded-full blur-[40px] scale-[1.2] -z-10" />
             
             {/* Image Wrapper - Physical Poster Effect */}
-            <div className="relative w-full rounded-sm bg-[#FDFCFB] p-2 md:p-3 shadow-[0_15px_40px_-10px_rgba(0,0,0,0.25)] transform rotate-[14deg] lg:rotate-[4deg] transition-transform duration-700 hover:rotate-[2deg] hover:-translate-y-2 hover:shadow-[0_20px_45px_-12px_rgba(0,0,0,0.35)] ring-1 ring-[#D7CCC8]/50">
+            <div className="relative w-full rounded-sm bg-[#FDFCFB] p-2 md:p-3 shadow-[0_15px_40px_-10px_rgba(0,0,0,0.25)] transform rotate-[8deg] lg:rotate-[4deg] transition-transform duration-700 hover:rotate-[2deg] hover:-translate-y-2 hover:shadow-[0_20px_45px_-12px_rgba(0,0,0,0.35)] ring-1 ring-[#D7CCC8]/50">
               
               {/* Top Masking Tape */}
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-16 md:w-20 h-6 md:h-7 bg-[#EBE9E1]/90 shadow-sm rotate-[-8deg] z-20 border border-black/5 backdrop-blur-sm" />

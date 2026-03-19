@@ -17,7 +17,7 @@ export default async function Home() {
 
       <div className="animate-fade-in relative z-0">
         {/* Sticky Hero Background */}
-        <div className="sticky top-0 h-[100svh] w-full flex flex-col justify-start -z-10 overflow-hidden">
+        <div className="relative md:sticky top-0 md:h-[100svh] w-full flex flex-col justify-start z-0 md:-z-10 overflow-visible md:overflow-hidden">
           <Hero coverImage={currentIssue?.coverImage} />
         </div>
 
