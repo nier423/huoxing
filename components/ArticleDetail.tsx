@@ -100,7 +100,7 @@ export default async function ArticleDetail({
         {shouldUseHtml ? (
           <div
             className="prose prose-stone mx-auto md:prose-lg font-serif leading-loose text-[#3A3A3A]
-              prose-p:mb-8 prose-p:indent-8 prose-headings:font-youyou prose-headings:text-[#2C2C2C]
+              prose-p:mb-8 prose-headings:font-youyou prose-headings:text-[#2C2C2C]
               prose-a:text-[#A1887F] prose-a:no-underline hover:prose-a:text-[#8D6E63]
               prose-blockquote:border-l-[#D7CCC8] prose-blockquote:text-[#757575] prose-blockquote:italic
               prose-strong:font-normal prose-strong:text-[#5D5D5D]"
@@ -111,7 +111,7 @@ export default async function ArticleDetail({
             {plainTextParagraphs.map((paragraph, index) => (
               <p
                 key={`${index}-${paragraph.slice(0, 12)}`}
-                className="mb-8 whitespace-pre-wrap indent-8"
+                className="mb-8 whitespace-pre-wrap"
               >
                 {paragraph}
               </p>
