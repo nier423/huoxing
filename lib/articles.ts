@@ -318,6 +318,7 @@ export async function getLatestArticles(
       .from("articles")
       .select(ARTICLE_SELECT)
       .eq("is_published", true)
+      .order("published_at", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -354,6 +355,7 @@ export async function getArticlesByCategory(
       .select(ARTICLE_SELECT)
       .eq("is_published", true)
       .or(orFilter)
+      .order("published_at", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -383,6 +385,7 @@ export async function getArticlesByIssue(issueId: string, limit = 100): Promise<
       .select(ARTICLE_SELECT)
       .eq("is_published", true)
       .eq("issue_id", issueId)
+      .order("published_at", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(limit)
   );

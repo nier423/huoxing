@@ -46,6 +46,11 @@ interface CreateArticleInput {
   title: string
 }
 
+interface GetAdminArticlesInput {
+  category?: string
+  issueId?: string
+}
+
 type RawArticleRow = Record<string, unknown>
 type RawIssueRow = Record<string, unknown>
 
@@ -86,6 +91,14 @@ function normalizeSlug(input: string) {
     .replace(/[^a-z0-9\u4e00-\u9fff-]/g, '')
     .replace(/-{2,}/g, '-')
     .replace(/^-+|-+$/g, '')
+}
+
+function getCategoryAliases(category: string) {
+  if (category === '有话慢谈' || category === '有话漫谈') {
+    return ['有话慢谈', '有话漫谈']
+  }
+
+  return [category]
 }
 
 async function requireArticleAdmin(): Promise<
@@ -260,19 +273,34 @@ export async function getAdminIssues(): Promise<ActionResult<AdminIssueSummary[]
   }
 }
 
-export async function getAdminArticles(): Promise<ActionResult<AdminArticleSummary[]>> {
+export async function getAdminArticles(
+  input?: GetAdminArticlesInput
+): Promise<ActionResult<AdminArticleSummary[]>> {
   try {
     const adminAccess = await requireArticleAdmin()
     if (!adminAccess.ok) {
       return adminAccess.result
     }
 
+    const issueId = input?.issueId?.trim()
+    const category = input?.category?.trim()
     const adminClient = createAdminClient()
-    const { data, error } = await adminClient
+    let query = adminClient
       .from('articles')
       .select(ADMIN_ARTICLE_SELECT)
+      .order('published_at', { ascending: false })
       .order('created_at', { ascending: false })
-      .limit(10)
+
+    if (issueId) {
+      query = query.eq('issue_id', issueId)
+    }
+
+    if (category) {
+      const aliases = getCategoryAliases(normalizeCategory(category))
+      query = aliases.length === 1 ? query.eq('category', aliases[0]) : query.in('category', aliases)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       return {
@@ -350,6 +378,7 @@ export async function createAdminArticle(
         author_name: author,
         category,
         is_published: input.publishNow,
+        published_at: input.publishNow ? new Date().toISOString() : null,
         view_count: 0,
         issue_id: issue.id,
       })
@@ -440,6 +469,80 @@ export async function updateIssuePublishedAt(
     return {
       success: false,
       message: '更新上线时间失败。',
+      error: getErrorMessage(error),
+    }
+  }
+}
+
+export async function updateArticlePublishedAt(
+  articleId: string,
+  publishedAt: string | null
+): Promise<ActionResult> {
+  try {
+    const adminAccess = await requireArticleAdmin()
+    if (!adminAccess.ok) {
+      return adminAccess.result
+    }
+
+    if (!articleId) {
+      return {
+        success: false,
+        message: '缺少文章 ID。',
+        error: 'MISSING_ARTICLE_ID',
+      }
+    }
+
+    const adminClient = createAdminClient()
+    const { data, error } = await adminClient
+      .from('articles')
+      .update({ published_at: publishedAt })
+      .eq('id', articleId)
+      .select('slug, category, issue_id')
+      .single()
+
+    if (error) {
+      return {
+        success: false,
+        message: '更新文章时间失败。',
+        error: error.message,
+      }
+    }
+
+    revalidatePath('/')
+    revalidatePath('/issues')
+    revalidatePath('/ops-room')
+    revalidatePath('/ops-room/articles')
+
+    const updatedArticle = (data as RawArticleRow | null) ?? null
+    const category = normalizeCategory(toText(updatedArticle?.category))
+    const categoryPath = CATEGORY_PATHS[category]
+
+    if (categoryPath) {
+      revalidatePath(categoryPath)
+    }
+
+    const slug = toText(updatedArticle?.slug)
+    if (slug) {
+      revalidatePath(`/articles/${slug}`)
+    }
+
+    const issueId = toText(updatedArticle?.issue_id)
+    if (issueId) {
+      const issue = await getIssueById(issueId)
+      if (issue?.slug) {
+        revalidatePath(`/issues/${issue.slug}`)
+      }
+    }
+
+    return {
+      success: true,
+      message: publishedAt ? `文章时间已设定。` : '文章时间已清除。',
+    }
+  } catch (error) {
+    console.error('[updateArticlePublishedAt] Unexpected error:', error)
+    return {
+      success: false,
+      message: '更新文章时间失败。',
       error: getErrorMessage(error),
     }
   }
