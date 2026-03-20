@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import IssueBadge from "@/components/IssueBadge";
-import { getAllIssues } from "@/lib/articles";
+import { getAllIssues, getCurrentIssue } from "@/lib/articles";
 import { getIssueDisplayBrandTitle, getIssueDisplayTitle } from "@/lib/issue-display";
 
 export const revalidate = 60;
@@ -25,9 +25,8 @@ function formatDate(input: string | null) {
 }
 
 export default async function IssuesPage() {
-  const issues = await getAllIssues();
-  const currentIssue = issues.find((issue) => issue.isCurrent) ?? issues[0] ?? null;
-  const archivedIssues = issues.filter((issue) => !issue.isCurrent);
+  const [issues, currentIssue] = await Promise.all([getAllIssues(), getCurrentIssue()]);
+  const archivedIssues = issues.filter((issue) => issue.id !== currentIssue?.id);
 
   return (
     <main className="min-h-screen bg-[#F7F5F0]">
