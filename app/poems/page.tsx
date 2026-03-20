@@ -64,11 +64,11 @@ export default async function Poems() {
 
                   {hasHtmlTags(poem.content) ? (
                     <div
-                      className="font-serif text-[#5D5D5D] text-lg leading-loose prose prose-stone mx-auto"
+                      className="font-serif text-[#5D5D5D] text-lg leading-loose prose prose-stone mx-auto text-left"
                       dangerouslySetInnerHTML={{ __html: poem.content }}
                     />
                   ) : (
-                    <div className="font-serif text-[#5D5D5D] text-lg leading-loose">
+                    <div className="font-serif text-[#5D5D5D] text-lg leading-loose text-left mx-auto max-w-2xl">
                       {toParagraphs(poem.content || poem.excerpt).map((line, i) => (
                         <p key={i} className="whitespace-pre-wrap mb-4 last:mb-0">
                           {line}
