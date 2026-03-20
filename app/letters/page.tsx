@@ -65,7 +65,7 @@ export default async function Letters() {
                 <div className="space-y-8">
                   {/* Title & Author */}
                   <div className="text-center space-y-4">
-                    <h2 className="font-youyou text-3xl md:text-4xl text-[#3A3A3A] tracking-widest group-hover:text-[#A1887F] transition-colors duration-500">
+                    <h2 className="font-youyou text-3xl md:text-4xl text-[#3A3A3A] tracking-widest group-hover:text-[#A1887F] transition-colors duration-500 text-balance">
                       {letter.title}
                     </h2>
                     <div className="flex items-center justify-center gap-3">
