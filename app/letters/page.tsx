@@ -88,7 +88,7 @@ export default async function Letters() {
                   ) : (
                     <div className="font-serif text-[#5D5D5D] text-lg leading-loose">
                       {toParagraphs(letterPart).map((para, i) => (
-                        <p key={i} className="whitespace-pre-wrap mb-6 last:mb-0 indent-8">
+                        <p key={i} className="whitespace-pre-wrap mb-6 last:mb-0">
                           {para}
                         </p>
                       ))}
@@ -124,7 +124,7 @@ export default async function Letters() {
                               // Skip the marker line itself
                               if (para === REPLY_MARKER) return null;
                               return (
-                                <p key={i} className="whitespace-pre-wrap mb-5 last:mb-0 indent-8">
+                                <p key={i} className="whitespace-pre-wrap mb-5 last:mb-0">
                                   {para}
                                 </p>
                               );
