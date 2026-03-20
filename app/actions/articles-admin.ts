@@ -226,6 +226,33 @@ async function getIssueById(issueId: string) {
   return data ? mapIssue(data as RawIssueRow) : null
 }
 
+async function revalidateArticlePaths(article: RawArticleRow | null) {
+  revalidatePath('/')
+  revalidatePath('/issues')
+  revalidatePath('/ops-room')
+  revalidatePath('/ops-room/articles')
+
+  const category = normalizeCategory(toText(article?.category))
+  const categoryPath = CATEGORY_PATHS[category]
+
+  if (categoryPath) {
+    revalidatePath(categoryPath)
+  }
+
+  const slug = toText(article?.slug)
+  if (slug) {
+    revalidatePath(`/articles/${slug}`)
+  }
+
+  const issueId = toText(article?.issue_id)
+  if (issueId) {
+    const issue = await getIssueById(issueId)
+    if (issue?.slug) {
+      revalidatePath(`/issues/${issue.slug}`)
+    }
+  }
+}
+
 export async function getAdminIssues(): Promise<ActionResult<AdminIssueSummary[]>> {
   try {
     const adminAccess = await requireArticleAdmin()
@@ -508,31 +535,7 @@ export async function updateArticlePublishedAt(
       }
     }
 
-    revalidatePath('/')
-    revalidatePath('/issues')
-    revalidatePath('/ops-room')
-    revalidatePath('/ops-room/articles')
-
-    const updatedArticle = (data as RawArticleRow | null) ?? null
-    const category = normalizeCategory(toText(updatedArticle?.category))
-    const categoryPath = CATEGORY_PATHS[category]
-
-    if (categoryPath) {
-      revalidatePath(categoryPath)
-    }
-
-    const slug = toText(updatedArticle?.slug)
-    if (slug) {
-      revalidatePath(`/articles/${slug}`)
-    }
-
-    const issueId = toText(updatedArticle?.issue_id)
-    if (issueId) {
-      const issue = await getIssueById(issueId)
-      if (issue?.slug) {
-        revalidatePath(`/issues/${issue.slug}`)
-      }
-    }
+    await revalidateArticlePaths((data as RawArticleRow | null) ?? null)
 
     return {
       success: true,
@@ -543,6 +546,53 @@ export async function updateArticlePublishedAt(
     return {
       success: false,
       message: '更新文章时间失败。',
+      error: getErrorMessage(error),
+    }
+  }
+}
+
+export async function deleteAdminArticle(articleId: string): Promise<ActionResult> {
+  try {
+    const adminAccess = await requireArticleAdmin()
+    if (!adminAccess.ok) {
+      return adminAccess.result
+    }
+
+    if (!articleId) {
+      return {
+        success: false,
+        message: 'Missing article ID.',
+        error: 'MISSING_ARTICLE_ID',
+      }
+    }
+
+    const adminClient = createAdminClient()
+    const { data, error } = await adminClient
+      .from('articles')
+      .delete()
+      .eq('id', articleId)
+      .select('slug, category, issue_id')
+      .single()
+
+    if (error) {
+      return {
+        success: false,
+        message: 'Failed to delete article.',
+        error: error.message,
+      }
+    }
+
+    await revalidateArticlePaths((data as RawArticleRow | null) ?? null)
+
+    return {
+      success: true,
+      message: 'Article deleted.',
+    }
+  } catch (error) {
+    console.error('[deleteAdminArticle] Unexpected error:', error)
+    return {
+      success: false,
+      message: 'Failed to delete article.',
       error: getErrorMessage(error),
     }
   }

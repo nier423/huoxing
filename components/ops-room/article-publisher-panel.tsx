@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, FilePlus2, Loader2, RefreshCw } from 'lucide-react'
 import {
   createAdminArticle,
+  deleteAdminArticle,
   getAdminArticles,
   getAdminIssues,
   updateIssuePublishedAt,
@@ -111,6 +112,8 @@ export default function ArticlePublisherPanel() {
   const [loading, setLoading] = useState(true)
   const [publishing, setPublishing] = useState(false)
   const [applyingArticleId, setApplyingArticleId] = useState('')
+  const [confirmDeleteArticleId, setConfirmDeleteArticleId] = useState('')
+  const [deletingArticleId, setDeletingArticleId] = useState('')
   const [message, setMessage] = useState('')
   const [isError, setIsError] = useState(false)
   const [title, setTitle] = useState('')
@@ -170,6 +173,7 @@ export default function ArticlePublisherPanel() {
     if (!nextCurrentIssue) {
       setArticles([])
       setSelectedArticleTime(null)
+      setConfirmDeleteArticleId('')
       setLoading(false)
       return
     }
@@ -187,6 +191,9 @@ export default function ArticlePublisherPanel() {
 
     const nextArticles = articlesResult.data ?? []
     setArticles(nextArticles)
+    setConfirmDeleteArticleId((currentDeleteId) =>
+      nextArticles.some((article) => article.id === currentDeleteId) ? currentDeleteId : ''
+    )
     setSelectedArticleTime((currentSelected) => {
       if (!currentSelected) {
         return null
@@ -288,6 +295,69 @@ export default function ArticlePublisherPanel() {
     setSelectedArticleTime(null)
     await loadPanelData()
     setApplyingArticleId('')
+  }
+
+  const handleDeleteRequest = (articleId: string) => {
+    setConfirmDeleteArticleId((currentArticleId) => (currentArticleId === articleId ? '' : articleId))
+  }
+
+  const handleDeleteArticleLegacy = async (article: AdminArticleSummary) => {
+    setDeletingArticleId(article.id)
+    setMessage('')
+    setIsError(false)
+
+    const result = await deleteAdminArticle(article.id)
+
+    if (!result.success) {
+      handleGuardFailure(result.error, result.message)
+      setDeletingArticleId('')
+      return
+    }
+
+    /*
+
+    setMessage(`宸插垹闄ゃ€?${article.title}銆嬨€俙)
+    setIsError(false)
+    setConfirmDeleteArticleId('')
+    setSelectedArticleTime((currentSelected) =>
+      currentSelected?.articleId === article.id ? null : currentSelected
+    )
+    await loadPanelData()
+    setDeletingArticleId('')
+  }
+
+    */
+    setMessage(`Deleted: ${article.title}`)
+    setIsError(false)
+    setConfirmDeleteArticleId('')
+    setSelectedArticleTime((currentSelected) =>
+      currentSelected?.articleId === article.id ? null : currentSelected
+    )
+    await loadPanelData()
+    setDeletingArticleId('')
+  }
+
+  const handleDeleteArticle = async (article: AdminArticleSummary) => {
+    setDeletingArticleId(article.id)
+    setMessage('')
+    setIsError(false)
+
+    const result = await deleteAdminArticle(article.id)
+
+    if (!result.success) {
+      handleGuardFailure(result.error, result.message)
+      setDeletingArticleId('')
+      return
+    }
+
+    setMessage(`Deleted: ${article.title}`)
+    setIsError(false)
+    setConfirmDeleteArticleId('')
+    setSelectedArticleTime((currentSelected) =>
+      currentSelected?.articleId === article.id ? null : currentSelected
+    )
+    await loadPanelData()
+    setDeletingArticleId('')
   }
 
   const selectedIssue = issues.find((issue) => issue.id === issueId) ?? null
@@ -566,6 +636,8 @@ export default function ArticlePublisherPanel() {
                 const canApplySelectedTime = Boolean(
                   selectedArticleTime && selectedArticleTime.articleId !== article.id
                 )
+                const isDeleteConfirming = confirmDeleteArticleId === article.id
+                const isDeleting = deletingArticleId === article.id
 
                 return (
                   <div
@@ -662,6 +734,35 @@ export default function ArticlePublisherPanel() {
                             {applyingArticleId === article.id ? '应用中...' : '应用这个时间'}
                           </button>
                         ) : null}
+
+                        {isDeleteConfirming ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteArticle(article)}
+                              disabled={isDeleting}
+                              className="rounded-full bg-red-600 px-4 py-1.5 text-xs text-white transition-colors hover:bg-red-700 disabled:bg-red-300"
+                            >
+                              {isDeleting ? 'Deleting...' : '确认删除'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteArticleId('')}
+                              disabled={isDeleting}
+                              className="rounded-full border border-[#D7CCC8] px-4 py-1.5 text-xs text-[#7C746D] transition-colors hover:border-[#A1887F] hover:text-[#A1887F] disabled:opacity-50"
+                            >
+                              取消
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteRequest(article.id)}
+                            className="rounded-full border border-red-200 px-4 py-1.5 text-xs text-red-600 transition-colors hover:bg-red-50"
+                          >
+                            删除文章
+                          </button>
+                        )}
                       </div>
 
                       <div className="flex items-center justify-between text-xs text-[#8D8D8D]">
