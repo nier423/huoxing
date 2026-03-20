@@ -64,6 +64,19 @@ function formatDateTime(value: string | null) {
   }).format(date)
 }
 
+function toDateTimeLocalValue(value: string | null) {
+  if (!value) {
+    return ''
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
+
 function normalizeSlug(input: string) {
   return input
     .trim()
@@ -269,7 +282,7 @@ export default function ArticlePublisherPanel() {
       publishedAt: article.publishedAt,
       title: article.title,
     })
-    setMessage(`已选中《${article.title}》的发布时间，可应用到当前栏目的新文章。`)
+    setMessage(`已选中《${article.title}》的发布时间，可用于替换当前栏目的另一篇文章位置。`)
     setIsError(false)
   }
 
@@ -667,17 +680,9 @@ export default function ArticlePublisherPanel() {
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-youyou text-[#5D5D5D]">发布时间</label>
                         <input
+                          key={`article-published-at-${article.id}-${article.publishedAt ?? 'empty'}`}
                           type="datetime-local"
-                          defaultValue={
-                            article.publishedAt
-                              ? new Date(
-                                  new Date(article.publishedAt).getTime() -
-                                    new Date(article.publishedAt).getTimezoneOffset() * 60000
-                                )
-                                  .toISOString()
-                                  .slice(0, 16)
-                              : ''
-                          }
+                          defaultValue={toDateTimeLocalValue(article.publishedAt)}
                           className="rounded-lg border border-[#E8E4DF] bg-white px-2 py-1 text-xs text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
                           onChange={async (e) => {
                             const val = e.target.value
@@ -731,7 +736,7 @@ export default function ArticlePublisherPanel() {
                             disabled={applyingArticleId === article.id}
                             className="rounded-full bg-[#3A3A3A] px-4 py-1.5 text-xs text-white transition-colors hover:bg-[#2A2A2A] disabled:bg-[#8D8D8D]"
                           >
-                            {applyingArticleId === article.id ? '应用中...' : '应用这个时间'}
+                            {applyingArticleId === article.id ? '替换中...' : '替换到这篇'}
                           </button>
                         ) : null}
 
@@ -828,17 +833,9 @@ export default function ArticlePublisherPanel() {
                           上线时间
                         </label>
                         <input
+                          key={`issue-published-at-${issue.id}-${issue.publishedAt ?? 'empty'}`}
                           type="datetime-local"
-                          defaultValue={
-                            issue.publishedAt
-                              ? new Date(
-                                new Date(issue.publishedAt).getTime() -
-                                new Date(issue.publishedAt).getTimezoneOffset() * 60000
-                              )
-                                .toISOString()
-                                .slice(0, 16)
-                              : ''
-                          }
+                          defaultValue={toDateTimeLocalValue(issue.publishedAt)}
                           className="w-full rounded-xl border border-[#E8E4DF] bg-white px-3 py-2 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
                           onChange={async (e) => {
                             const val = e.target.value
