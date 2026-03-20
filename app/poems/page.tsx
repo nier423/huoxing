@@ -7,12 +7,8 @@ function hasHtmlTags(input: string): boolean {
   return /<[^>]+>/.test(input);
 }
 
-function toParagraphs(input: string): string[] {
-  return input
-    .replace(/\r\n/g, "\n")
-    .split(/\n{2,}/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+function normalizePlainText(input: string): string {
+  return input.replace(/\r\n/g, "\n");
 }
 
 export default async function Poems() {
@@ -68,12 +64,8 @@ export default async function Poems() {
                       dangerouslySetInnerHTML={{ __html: poem.content }}
                     />
                   ) : (
-                    <div className="font-serif text-[#5D5D5D] text-lg leading-loose text-left mx-auto max-w-2xl">
-                      {toParagraphs(poem.content || poem.excerpt).map((line, i) => (
-                        <p key={i} className="whitespace-pre-wrap mb-4 last:mb-0">
-                          {line}
-                        </p>
-                      ))}
+                    <div className="whitespace-pre-wrap break-words font-serif text-[#5D5D5D] text-lg leading-loose text-left mx-auto max-w-2xl">
+                      {normalizePlainText(poem.content || poem.excerpt)}
                     </div>
                   )}
                 </div>

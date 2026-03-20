@@ -9,12 +9,8 @@ function hasHtmlTags(input: string): boolean {
   return /<[^>]+>/.test(input);
 }
 
-function toParagraphs(input: string): string[] {
-  return input
-    .replace(/\r\n/g, "\n")
-    .split(/\n{2,}/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+function normalizePlainText(input: string): string {
+  return input.replace(/\r\n/g, "\n");
 }
 
 /**
@@ -24,7 +20,15 @@ function toParagraphs(input: string): string[] {
 function splitAtReplyMarker(content: string): [string, string | null] {
   const idx = content.indexOf(REPLY_MARKER);
   if (idx === -1) return [content, null];
-  return [content.slice(0, idx).trim(), content.slice(idx).trim()];
+  return [content.slice(0, idx), content.slice(idx)];
+}
+
+function stripReplyMarker(input: string): string {
+  if (!input.startsWith(REPLY_MARKER)) {
+    return input;
+  }
+
+  return input.slice(REPLY_MARKER.length).replace(/^\r?\n/, "");
 }
 
 export default async function Letters() {
@@ -86,12 +90,8 @@ export default async function Letters() {
                       dangerouslySetInnerHTML={{ __html: letterPart }}
                     />
                   ) : (
-                    <div className="font-serif text-[#5D5D5D] text-lg leading-loose">
-                      {toParagraphs(letterPart).map((para, i) => (
-                        <p key={i} className="whitespace-pre-wrap mb-6 last:mb-0">
-                          {para}
-                        </p>
-                      ))}
+                    <div className="whitespace-pre-wrap break-words font-serif text-[#5D5D5D] text-lg leading-loose">
+                      {normalizePlainText(letterPart)}
                     </div>
                   )}
 
@@ -119,16 +119,8 @@ export default async function Letters() {
                             dangerouslySetInnerHTML={{ __html: replyPart }}
                           />
                         ) : (
-                          <div className="font-serif text-[#6B5F58] text-base md:text-lg leading-loose">
-                            {toParagraphs(replyPart).map((para, i) => {
-                              // Skip the marker line itself
-                              if (para === REPLY_MARKER) return null;
-                              return (
-                                <p key={i} className="whitespace-pre-wrap mb-5 last:mb-0">
-                                  {para}
-                                </p>
-                              );
-                            })}
+                          <div className="whitespace-pre-wrap break-words font-serif text-[#6B5F58] text-base md:text-lg leading-loose">
+                            {normalizePlainText(stripReplyMarker(replyPart))}
                           </div>
                         )}
 

@@ -34,12 +34,8 @@ function hasHtmlTags(input: string): boolean {
   return /<[^>]+>/.test(input);
 }
 
-function toParagraphs(input: string): string[] {
-  return input
-    .replace(/\r\n/g, "\n")
-    .split(/\n{2,}/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+function normalizePlainText(input: string): string {
+  return input.replace(/\r\n/g, "\n");
 }
 
 export default async function ArticleDetail({
@@ -60,7 +56,7 @@ export default async function ArticleDetail({
   } = await supabase.auth.getUser();
   const echoes = await fetchEchoes(article.id);
   const category = article.category || fallbackCategory;
-  const plainTextParagraphs = toParagraphs(article.content);
+  const plainTextContent = normalizePlainText(article.content);
   const shouldUseHtml = hasHtmlTags(article.content);
   const resolvedBackHref = backHref ?? getIssueHref(article.issue);
   const resolvedBackLabel = backLabel ?? (article.issue ? "返回本期" : "返回列表");
@@ -107,15 +103,8 @@ export default async function ArticleDetail({
             dangerouslySetInnerHTML={{ __html: article.content }}
           />
         ) : (
-          <div className="mx-auto font-serif text-base md:text-lg leading-loose text-[#3A3A3A]">
-            {plainTextParagraphs.map((paragraph, index) => (
-              <p
-                key={`${index}-${paragraph.slice(0, 12)}`}
-                className="mb-8 whitespace-pre-wrap"
-              >
-                {paragraph}
-              </p>
-            ))}
+          <div className="mx-auto whitespace-pre-wrap break-words font-serif text-base md:text-lg leading-loose text-[#3A3A3A]">
+            {plainTextContent}
           </div>
         )}
 
