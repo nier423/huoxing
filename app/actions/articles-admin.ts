@@ -551,6 +551,136 @@ export async function updateArticlePublishedAt(
   }
 }
 
+export async function replaceAdminArticle(
+  sourceArticleId: string,
+  targetArticleId: string
+): Promise<ActionResult> {
+  try {
+    const adminAccess = await requireArticleAdmin()
+    if (!adminAccess.ok) {
+      return adminAccess.result
+    }
+
+    if (!sourceArticleId || !targetArticleId) {
+      return {
+        success: false,
+        message: 'Missing article ID.',
+        error: 'MISSING_ARTICLE_ID',
+      }
+    }
+
+    if (sourceArticleId === targetArticleId) {
+      return {
+        success: false,
+        message: 'Source and target articles must be different.',
+        error: 'INVALID_ARTICLE_PAIR',
+      }
+    }
+
+    const adminClient = createAdminClient()
+    const { data: articles, error: fetchError } = await adminClient
+      .from('articles')
+      .select('id, slug, category, issue_id, published_at, is_published')
+      .in('id', [sourceArticleId, targetArticleId])
+
+    if (fetchError) {
+      return {
+        success: false,
+        message: 'Failed to load articles for replacement.',
+        error: fetchError.message,
+      }
+    }
+
+    const rows = (articles as RawArticleRow[] | null) ?? []
+    const sourceArticle =
+      rows.find((row) => String(row.id ?? '') === sourceArticleId) ?? null
+    const targetArticle =
+      rows.find((row) => String(row.id ?? '') === targetArticleId) ?? null
+
+    if (!sourceArticle || !targetArticle) {
+      return {
+        success: false,
+        message: 'Could not find both articles for replacement.',
+        error: 'ARTICLE_NOT_FOUND',
+      }
+    }
+
+    const sourcePublishedAt = toText(sourceArticle.published_at) || null
+    const targetPublishedAt = toText(targetArticle.published_at) || null
+    const targetIsPublished = Boolean(targetArticle.is_published)
+
+    if (!sourcePublishedAt) {
+      return {
+        success: false,
+        message: 'The old article does not have a publish time yet.',
+        error: 'MISSING_SOURCE_PUBLISHED_AT',
+      }
+    }
+
+    if (!targetIsPublished) {
+      return {
+        success: false,
+        message: 'Publish the new article before replacing the old one.',
+        error: 'TARGET_NOT_PUBLISHED',
+      }
+    }
+
+    const { data: updatedTarget, error: updateError } = await adminClient
+      .from('articles')
+      .update({ published_at: sourcePublishedAt })
+      .eq('id', targetArticleId)
+      .select('slug, category, issue_id, published_at')
+      .single()
+
+    if (updateError) {
+      return {
+        success: false,
+        message: 'Failed to move the old publish time to the new article.',
+        error: updateError.message,
+      }
+    }
+
+    const { data: deletedSource, error: deleteError } = await adminClient
+      .from('articles')
+      .delete()
+      .eq('id', sourceArticleId)
+      .select('slug, category, issue_id, published_at')
+      .single()
+
+    if (deleteError) {
+      const rollback = await adminClient
+        .from('articles')
+        .update({ published_at: targetPublishedAt })
+        .eq('id', targetArticleId)
+
+      if (rollback.error) {
+        console.error('[replaceAdminArticle] Failed to roll back target article:', rollback.error)
+      }
+
+      return {
+        success: false,
+        message: 'Failed to delete the old article after moving its publish time.',
+        error: deleteError.message,
+      }
+    }
+
+    await revalidateArticlePaths((updatedTarget as RawArticleRow | null) ?? null)
+    await revalidateArticlePaths((deletedSource as RawArticleRow | null) ?? null)
+
+    return {
+      success: true,
+      message: 'Article replaced successfully.',
+    }
+  } catch (error) {
+    console.error('[replaceAdminArticle] Unexpected error:', error)
+    return {
+      success: false,
+      message: 'Failed to replace the article.',
+      error: getErrorMessage(error),
+    }
+  }
+}
+
 export async function deleteAdminArticle(articleId: string): Promise<ActionResult> {
   try {
     const adminAccess = await requireArticleAdmin()

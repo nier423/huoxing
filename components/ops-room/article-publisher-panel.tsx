@@ -9,6 +9,7 @@ import {
   deleteAdminArticle,
   getAdminArticles,
   getAdminIssues,
+  replaceAdminArticle,
   updateIssuePublishedAt,
   uploadIssueCoverImage,
   updateArticlePublishedAt,
@@ -270,7 +271,7 @@ export default function ArticlePublisherPanel() {
     setPublishing(false)
   }
 
-  const handlePickArticleTime = (article: AdminArticleSummary) => {
+  const handlePickArticleTimeLegacy = (article: AdminArticleSummary) => {
     if (!article.publishedAt) {
       setMessage('这篇文章还没有发布时间，暂时不能作为替换时间。')
       setIsError(true)
@@ -286,7 +287,7 @@ export default function ArticlePublisherPanel() {
     setIsError(false)
   }
 
-  const handleApplySelectedTime = async (article: AdminArticleSummary) => {
+  const handleApplySelectedTimeLegacy = async (article: AdminArticleSummary) => {
     if (!selectedArticleTime) {
       return
     }
@@ -304,6 +305,46 @@ export default function ArticlePublisherPanel() {
     }
 
     setMessage(`已将《${selectedArticleTime.title}》的发布时间应用到《${article.title}》。`)
+    setIsError(false)
+    setSelectedArticleTime(null)
+    await loadPanelData()
+    setApplyingArticleId('')
+  }
+
+  const handlePickArticleTime = (article: AdminArticleSummary) => {
+    if (!article.publishedAt) {
+      setMessage('这篇文章还没有发布时间，暂时不能作为替换来源。')
+      setIsError(true)
+      return
+    }
+
+    setSelectedArticleTime({
+      articleId: article.id,
+      publishedAt: article.publishedAt,
+      title: article.title,
+    })
+    setMessage(`已选中《${article.title}》作为旧文章。请先确认新文章已发布，再点它的“替换成这篇”。`)
+    setIsError(false)
+  }
+
+  const handleApplySelectedTime = async (article: AdminArticleSummary) => {
+    if (!selectedArticleTime) {
+      return
+    }
+
+    setApplyingArticleId(article.id)
+    setMessage('')
+    setIsError(false)
+
+    const result = await replaceAdminArticle(selectedArticleTime.articleId, article.id)
+
+    if (!result.success) {
+      handleGuardFailure(result.error, result.message)
+      setApplyingArticleId('')
+      return
+    }
+
+    setMessage(`已用《${article.title}》替换《${selectedArticleTime.title}》，旧文章已删除。`)
     setIsError(false)
     setSelectedArticleTime(null)
     await loadPanelData()
@@ -618,6 +659,9 @@ export default function ArticlePublisherPanel() {
                   <p className="mt-1 text-xs text-[#8D8D8D]">
                     {formatDateTime(selectedArticleTime.publishedAt)}
                   </p>
+                  <p className="mt-2 text-xs text-[#8D8D8D]">
+                    选择另一篇已发布的新文章后，点击“替换成这篇”，旧文章会被自动删除。
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -647,7 +691,9 @@ export default function ArticlePublisherPanel() {
               {articles.map((article) => {
                 const isSelectedTimeSource = selectedArticleTime?.articleId === article.id
                 const canApplySelectedTime = Boolean(
-                  selectedArticleTime && selectedArticleTime.articleId !== article.id
+                  selectedArticleTime &&
+                    selectedArticleTime.articleId !== article.id &&
+                    article.isPublished
                 )
                 const isDeleteConfirming = confirmDeleteArticleId === article.id
                 const isDeleting = deletingArticleId === article.id
@@ -726,7 +772,7 @@ export default function ArticlePublisherPanel() {
                               : 'bg-white text-[#5D5D5D] hover:bg-[#EFE7E2]'
                           } disabled:cursor-not-allowed disabled:opacity-50`}
                         >
-                          {isSelectedTimeSource ? '当前时间来源' : '用这篇文章的时间'}
+                          {isSelectedTimeSource ? '已选旧文章' : '选为旧文章'}
                         </button>
 
                         {canApplySelectedTime ? (
@@ -736,7 +782,7 @@ export default function ArticlePublisherPanel() {
                             disabled={applyingArticleId === article.id}
                             className="rounded-full bg-[#3A3A3A] px-4 py-1.5 text-xs text-white transition-colors hover:bg-[#2A2A2A] disabled:bg-[#8D8D8D]"
                           >
-                            {applyingArticleId === article.id ? '替换中...' : '替换到这篇'}
+                            {applyingArticleId === article.id ? '替换中...' : '替换成这篇'}
                           </button>
                         ) : null}
 
@@ -769,6 +815,10 @@ export default function ArticlePublisherPanel() {
                           </button>
                         )}
                       </div>
+
+                      {selectedArticleTime && selectedArticleTime.articleId !== article.id && !article.isPublished ? (
+                        <p className="text-xs text-[#A1887F]">先发布这篇新文章，再执行替换。</p>
+                      ) : null}
 
                       <div className="flex items-center justify-between text-xs text-[#8D8D8D]">
                         <span>链接：/articles/{article.slug}</span>
