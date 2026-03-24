@@ -3,14 +3,11 @@
 import { getEditorialRecipientList, getResendClient, getResendFromEmail } from '@/lib/resend'
 
 const MAX_FILE_SIZE = 4.5 * 1024 * 1024
-const ALLOWED_EXTENSIONS = new Set(['doc', 'docx', 'md', 'pdf'])
+const ALLOWED_EXTENSIONS = new Set(['doc', 'docx', 'txt'])
 const ALLOWED_MIME_TYPES = new Set([
   'application/msword',
-  'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'text/markdown',
   'text/plain',
-  'text/x-markdown',
 ])
 
 interface SubmissionActionResult {
@@ -142,7 +139,7 @@ export async function submitManuscript(
     if (!isAllowedFile(file)) {
       return {
         success: false,
-        message: '仅支持 PDF、Word（.doc/.docx）和 Markdown（.md）文件。',
+        message: '仅支持 DOC、DOCX、TXT 文件。',
       }
     }
 

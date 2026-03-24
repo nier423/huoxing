@@ -39,7 +39,7 @@ export default function SubmitPage() {
 
             <div className="flex items-center gap-2 rounded-2xl border border-[#E8E4DF] bg-[#F7F5F0] px-4 py-3 text-sm text-[#5D5D5D]">
               <PenSquare className="h-4 w-4 text-[#A1887F]" />
-              <span>支持 PDF / DOC / DOCX / Markdown</span>
+              <span>支持 DOC / DOCX / TXT</span>
             </div>
           </div>
 

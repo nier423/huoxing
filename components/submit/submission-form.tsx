@@ -1,29 +1,82 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2, Send } from "lucide-react";
+import { useRef, useState } from "react";
+import { Loader2, Send, X } from "lucide-react";
 import { submitManuscript } from "@/app/actions/submissions";
 
+const MAX_FILE_SIZE_BYTES = 4.5 * 1024 * 1024;
 const MAX_FILE_SIZE_LABEL = "4.5MB";
-const ACCEPTED_FILE_TYPES = ".pdf,.doc,.docx,.md";
+const ACCEPTED_FILE_TYPES = ".doc,.docx,.txt";
 const SUBMISSION_EMAIL = "xinghuo0308@outlook.com";
 
+const SUCCESS_MODAL_CONTENT = {
+  greeting: "您好！",
+  paragraphs: [
+    "感谢您将文字托付给《星火好看》编辑部。稿件已进入初评队列，由于全员均为志愿者，请知悉以下默契：",
+    "契合本期主题的稿件，14 个自然日内会收到是否收录通知。投稿的稿件默认编辑部可简单修改，并有可能在公众号、小红书、抖音等平台发布。",
+    "逾期未回复 ≠ 拒稿，稿件已存入火种库，后续有合适主题会主动联系。期待与您的再次会面。",
+    "志愿者团队人力有限，无法为每一份稿件提供一对一回复，还望见谅。但请相信，我们认真读过您写下的每一个字。",
+  ],
+  exploreTitle: "探索《星火》的更多角落：",
+  officialSiteTitle: "官方网站：",
+  officialSiteText: "注册官网需邀请码，申请邀请码添加微信：",
+  officialSiteWeChat: "xinghuotakan0308",
+  officialSiteHint: "—— 那些文字，正等待您的共鸣",
+  wechatTitle: "公众号：星火-好看",
+  wechatHint: "—— 关注并回复“加入”，进入我们的深度交流群，与更多同类一起点亮微光。",
+  signature: "《星火好看》编辑部 敬上",
+};
+
 export default function SubmissionForm() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
+  const [selectedFileName, setSelectedFileName] = useState("");
+  const [showFileRemoveButton, setShowFileRemoveButton] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const clearFile = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
+    setSelectedFileName("");
+    setShowFileRemoveButton(false);
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setSelectedFileName(file?.name ?? "");
+  };
+
+  const openFilePicker = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleCloseModal = () => {
+    setShowSuccessModal(false);
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
     setMessage("");
     setIsError(false);
+    setShowSuccessModal(false);
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const file = formData.get("manuscript");
+    const file = fileInputRef.current?.files?.[0];
 
-    if (file instanceof File && file.size > 4.5 * 1024 * 1024) {
+    if (!file) {
+      setMessage("请先选择稿件文件。");
+      setIsError(true);
+      setLoading(false);
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
       setMessage(`稿件文件不能超过 ${MAX_FILE_SIZE_LABEL}。`);
       setIsError(true);
       setLoading(false);
@@ -36,134 +89,226 @@ export default function SubmissionForm() {
 
     if (result.success) {
       form.reset();
+      clearFile();
+      setShowSuccessModal(true);
     }
 
     setLoading(false);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <input type="text" name="website" className="hidden" tabIndex={-1} autoComplete="off" />
+    <>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <input type="text" name="website" className="hidden" tabIndex={-1} autoComplete="off" />
 
-      <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-youyou text-[#5D5D5D]">作者</label>
+            <input
+              type="text"
+              name="author"
+              required
+              className="w-full rounded-xl border border-[#E8E4DF] bg-[#F7F5F0] px-4 py-3 text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
+              placeholder="笔名或署名"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-youyou text-[#5D5D5D]">联系邮箱</label>
+            <input
+              type="email"
+              name="contactEmail"
+              required
+              className="w-full rounded-xl border border-[#E8E4DF] bg-[#F7F5F0] px-4 py-3 text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
+              placeholder="your@email.com"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-[1.3fr_0.7fr]">
+          <div>
+            <label className="mb-2 block text-sm font-youyou text-[#5D5D5D]">标题</label>
+            <input
+              type="text"
+              name="title"
+              required
+              className="w-full rounded-xl border border-[#E8E4DF] bg-[#F7F5F0] px-4 py-3 text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
+              placeholder="稿件标题"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-youyou text-[#5D5D5D]">栏目</label>
+            <select
+              name="category"
+              required
+              className="w-full rounded-xl border border-[#E8E4DF] bg-[#F7F5F0] px-4 py-3 text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
+              defaultValue=""
+            >
+              <option value="" disabled>
+                请选择栏目
+              </option>
+              <option value="有话慢谈">有话慢谈</option>
+              <option value="人间剧场">人间剧场</option>
+              <option value="胡说八道">胡说八道</option>
+              <option value="三行两句">三行两句</option>
+              <option value="见字如面">见字如面</option>
+            </select>
+          </div>
+        </div>
+
         <div>
-          <label className="mb-2 block text-sm font-youyou text-[#5D5D5D]">
-            作者
-          </label>
-          <input
-            type="text"
-            name="author"
+          <label className="mb-2 block text-sm font-youyou text-[#5D5D5D]">简短描述</label>
+          <textarea
+            name="description"
             required
-            className="w-full rounded-xl border border-[#E8E4DF] bg-[#F7F5F0] px-4 py-3 text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
-            placeholder="笔名或署名"
+            rows={5}
+            className="w-full rounded-2xl border border-[#E8E4DF] bg-[#F7F5F0] px-4 py-3 text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
+            placeholder="简单介绍这篇稿件的主题、背景或你想表达的内容。"
           />
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-youyou text-[#5D5D5D]">
-            联系邮箱
-          </label>
+          <label className="mb-2 block text-sm font-youyou text-[#5D5D5D]">上传稿件</label>
           <input
-            type="email"
-            name="contactEmail"
-            required
-            className="w-full rounded-xl border border-[#E8E4DF] bg-[#F7F5F0] px-4 py-3 text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
-            placeholder="your@email.com"
+            ref={fileInputRef}
+            type="file"
+            name="manuscript"
+            accept={ACCEPTED_FILE_TYPES}
+            onChange={handleFileChange}
+            className="sr-only"
           />
-        </div>
-      </div>
 
-      <div className="grid gap-6 md:grid-cols-[1.3fr_0.7fr]">
-        <div>
-          <label className="mb-2 block text-sm font-youyou text-[#5D5D5D]">
-            标题
-          </label>
-          <input
-            type="text"
-            name="title"
-            required
-            className="w-full rounded-xl border border-[#E8E4DF] bg-[#F7F5F0] px-4 py-3 text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
-            placeholder="稿件标题"
-          />
+          <div className="rounded-xl border border-dashed border-[#D7CCC8] bg-white px-4 py-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={openFilePicker}
+                className="inline-flex items-center rounded-full bg-[#3A3A3A] px-4 py-2 text-sm text-white transition-colors hover:bg-[#2A2A2A]"
+              >
+                选择文件
+              </button>
+
+              {selectedFileName ? (
+                <div
+                  className="inline-flex max-w-full items-center rounded-full border border-[#D8D1CB] bg-[#F7F5F0] px-4 py-2 text-sm text-[#5D5D5D] transition-colors hover:border-[#BCAEA4]"
+                  onMouseEnter={() => setShowFileRemoveButton(true)}
+                  onMouseLeave={() => setShowFileRemoveButton(false)}
+                >
+                  <span className="max-w-[220px] truncate sm:max-w-[280px]">{selectedFileName}</span>
+                  <button
+                    type="button"
+                    onClick={clearFile}
+                    className={`ml-2 inline-flex h-4 w-4 items-center justify-center rounded-full text-[#8D8178] transition-opacity duration-150 hover:text-[#3A3A3A] focus:outline-none ${
+                      showFileRemoveButton
+                        ? "opacity-100 pointer-events-auto"
+                        : "opacity-0 pointer-events-none"
+                    }`}
+                    aria-label="删除已选择文件"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <span className="text-sm text-[#9A8F87]">未选择任何文件</span>
+              )}
+            </div>
+          </div>
+
+          <p className="mt-2 text-sm text-[#8D8D8D]">
+            最大 {MAX_FILE_SIZE_LABEL}。如果超过 {MAX_FILE_SIZE_LABEL}，请发送到我们的邮箱：
+            <a
+              href={`mailto:${SUBMISSION_EMAIL}`}
+              className="ml-1 text-[#A1887F] transition-colors hover:text-[#8D6E63]"
+            >
+              {SUBMISSION_EMAIL}
+            </a>
+          </p>
         </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-youyou text-[#5D5D5D]">
-            栏目
-          </label>
-          <select
-            name="category"
-            required
-            className="w-full rounded-xl border border-[#E8E4DF] bg-[#F7F5F0] px-4 py-3 text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
-            defaultValue=""
+        {message && !showSuccessModal ? (
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm font-youyou ${
+              isError
+                ? "border-red-100 bg-red-50 text-red-600"
+                : "border-green-100 bg-green-50 text-green-600"
+            }`}
           >
-            <option value="" disabled>
-              请选择栏目
-            </option>
-            <option value="有话慢谈">有话慢谈</option>
-            <option value="人间剧场">人间剧场</option>
-            <option value="胡说八道">胡说八道</option>
-            <option value="三行两句">三行两句</option>
-            <option value="见字如面">见字如面</option>
-          </select>
-        </div>
-      </div>
+            {message}
+          </div>
+        ) : null}
 
-      <div>
-        <label className="mb-2 block text-sm font-youyou text-[#5D5D5D]">
-          简短描述
-        </label>
-        <textarea
-          name="description"
-          required
-          rows={5}
-          className="w-full rounded-2xl border border-[#E8E4DF] bg-[#F7F5F0] px-4 py-3 text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
-          placeholder="简单介绍这篇稿件的主题、背景或你想表达的内容。"
-        />
-      </div>
-
-      <div>
-        <label className="mb-2 block text-sm font-youyou text-[#5D5D5D]">
-          上传稿件
-        </label>
-        <input
-          type="file"
-          name="manuscript"
-          required
-          accept={ACCEPTED_FILE_TYPES}
-          className="block w-full rounded-xl border border-dashed border-[#D7CCC8] bg-white px-4 py-4 text-sm text-[#5D5D5D] file:mr-4 file:rounded-full file:border-0 file:bg-[#3A3A3A] file:px-4 file:py-2 file:text-sm file:text-white hover:file:bg-[#2A2A2A]"
-        />
-        <p className="mt-2 text-sm text-[#8D8D8D]">
-          最大 {MAX_FILE_SIZE_LABEL}。如果超过 {MAX_FILE_SIZE_LABEL}，请发送到我们的邮箱：
-          <a
-            href={`mailto:${SUBMISSION_EMAIL}`}
-            className="ml-1 text-[#A1887F] transition-colors hover:text-[#8D6E63]"
-          >
-            {SUBMISSION_EMAIL}
-          </a>
-        </p>
-      </div>
-
-      {message && (
-        <div
-          className={`rounded-xl border px-4 py-3 text-sm font-youyou ${
-            isError
-              ? "border-red-100 bg-red-50 text-red-600"
-              : "border-green-100 bg-green-50 text-green-600"
-          }`}
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex items-center gap-2 rounded-full bg-[#3A3A3A] px-6 py-3 text-sm text-white transition-colors hover:bg-[#2A2A2A] disabled:bg-[#8D8D8D]"
         >
-          {message}
-        </div>
-      )}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          <span className="font-youyou">{loading ? "提交中..." : "提交稿件"}</span>
+        </button>
+      </form>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="inline-flex items-center gap-2 rounded-full bg-[#3A3A3A] px-6 py-3 text-sm text-white transition-colors hover:bg-[#2A2A2A] disabled:bg-[#8D8D8D]"
-      >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        <span className="font-youyou">{loading ? "提交中..." : "提交稿件"}</span>
-      </button>
-    </form>
+      {showSuccessModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#2C2C2C]/40 px-4 py-8 backdrop-blur-sm">
+          <div className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-[#E8E4DF] bg-[#FDFBF7] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.18)] md:p-8">
+            <button
+              type="button"
+              onClick={handleCloseModal}
+              className="absolute right-5 top-5 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#E8E4DF] bg-white text-[#8D8D8D] transition-colors hover:text-[#5D5D5D]"
+              aria-label="关闭弹窗"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="pr-10">
+              <h2 className="font-youyou text-3xl text-[#3A3A3A] md:text-4xl">投稿已收到</h2>
+              <p className="mt-6 text-base leading-8 text-[#4B433E]">
+                {SUCCESS_MODAL_CONTENT.greeting}
+              </p>
+
+              <div className="mt-4 space-y-4 text-base leading-8 text-[#5A504A]">
+                {SUCCESS_MODAL_CONTENT.paragraphs.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
+
+              <div className="mt-8 rounded-2xl border border-[#E8E4DF] bg-white/80 px-5 py-5">
+                <p className="text-sm tracking-[0.2em] text-[#A1887F]">
+                  {SUCCESS_MODAL_CONTENT.exploreTitle}
+                </p>
+
+                <div className="mt-5 space-y-6 text-base leading-8 text-[#4B433E]">
+                  <div>
+                    <p>
+                      <span className="font-youyou text-[#3A3A3A]">
+                        {SUCCESS_MODAL_CONTENT.officialSiteTitle}
+                      </span>
+                      {SUCCESS_MODAL_CONTENT.officialSiteText}
+                      <strong>{SUCCESS_MODAL_CONTENT.officialSiteWeChat}</strong>
+                    </p>
+                    <p className="mt-1 text-[#7C746D]">
+                      {SUCCESS_MODAL_CONTENT.officialSiteHint}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="font-youyou text-[#3A3A3A]">
+                      {SUCCESS_MODAL_CONTENT.wechatTitle}
+                    </p>
+                    <p className="mt-1 text-[#7C746D]">
+                      {SUCCESS_MODAL_CONTENT.wechatHint}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <p className="mt-8 text-right font-youyou text-[#8D6E63]">
+                {SUCCESS_MODAL_CONTENT.signature}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
