@@ -38,8 +38,16 @@ function LoginPageContent() {
     if (nextMessage) {
       setMessage(nextMessage)
       setIsError(nextType === 'error')
+
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('message')
+      params.delete('type')
+
+      const nextQuery = params.toString()
+      const nextUrl = nextQuery ? `/login?${nextQuery}` : '/login'
+      router.replace(nextUrl, { scroll: false })
     }
-  }, [searchParams])
+  }, [router, searchParams])
 
   const clearFeedback = () => {
     setMessage('')
@@ -62,12 +70,16 @@ function LoginPageContent() {
     }
 
     const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+      redirectTo: `${window.location.origin}/auth/callback`,
     })
 
     if (error) {
       console.error('[resetPasswordForEmail] 发送重置邮件失败:', error)
-      setMessage('重置邮件发送失败，请稍后重试。')
+      if (error.message.toLowerCase().includes('redirect')) {
+        setMessage('重置邮件发送失败，请检查 Supabase 的 Redirect URLs 是否已添加 /auth/callback。')
+      } else {
+        setMessage('重置邮件发送失败，请稍后重试。')
+      }
       setIsError(true)
       return
     }

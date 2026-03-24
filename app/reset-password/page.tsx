@@ -18,26 +18,62 @@ function ResetPasswordPageContent() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [canReset, setCanReset] = useState(false)
+  const [needsEmailLink, setNeedsEmailLink] = useState(false)
 
   useEffect(() => {
+    const supabase = createClient()
+
+    if (!supabase) {
+      setMessage('服务配置缺失，请联系管理员。')
+      setIsError(true)
+      setChecking(false)
+      return
+    }
+
     const ready = searchParams.get('ready') === '1'
     const incomingMessage = searchParams.get('message')
     const incomingType = searchParams.get('type')
 
-    setCanReset(ready)
+    const checkResetAccess = async () => {
+      if (incomingMessage) {
+        setMessage(incomingMessage)
+        setIsError(incomingType === 'error')
+      }
 
-    if (incomingMessage) {
-      setMessage(incomingMessage)
-      setIsError(incomingType === 'error')
-    } else if (!ready) {
-      setMessage('重置链接无效或已过期，请重新申请找回密码。')
-      setIsError(true)
-    } else {
+      if (!ready) {
+        setCanReset(false)
+        setNeedsEmailLink(true)
+        if (!incomingMessage) {
+          setMessage('请通过邮箱中的重置链接进入此页面。')
+          setIsError(false)
+        }
+        setChecking(false)
+        return
+      }
+
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser()
+
+      if (error || !user) {
+        console.error('[reset-password] 无法确认重置会话:', error)
+        setCanReset(false)
+        setNeedsEmailLink(false)
+        setMessage('重置链接无效或已过期，请重新申请找回密码。')
+        setIsError(true)
+        setChecking(false)
+        return
+      }
+
+      setCanReset(true)
+      setNeedsEmailLink(false)
       setMessage('')
       setIsError(false)
+      setChecking(false)
     }
 
-    setChecking(false)
+    void checkResetAccess()
   }, [searchParams])
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -216,7 +252,7 @@ function ResetPasswordPageContent() {
 
             {!checking && !canReset && (
               <p className="mt-6 text-center text-sm text-[#8D8D8D] font-youyou">
-                需要重新获取邮件链接？
+                {needsEmailLink ? '需要先申请重置邮件？' : '需要重新获取邮件链接？'}
                 <Link
                   href="/login?mode=forgot"
                   className="ml-1 text-[#A1887F] hover:text-[#8D6E63] transition-colors"
