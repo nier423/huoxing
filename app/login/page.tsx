@@ -122,9 +122,7 @@ function LoginPageContent() {
       return
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-      redirectTo: `${window.location.origin}/auth/callback`,
-    })
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail)
 
     if (error) {
       console.error('[resetPasswordForEmail] 发送重置邮件失败:', error)
