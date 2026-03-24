@@ -23,6 +23,7 @@ export interface Article {
   category: string;
   publishedAt: string;
   viewCount: number;
+  echoCount: number;
   issue: Issue | null;
 }
 
@@ -44,6 +45,7 @@ export const CATEGORY_PATHS: Record<string, string> = {
 
 type RawArticleRow = Record<string, unknown>;
 type RawIssueRow = Record<string, unknown>;
+type RawEchoRow = Record<string, unknown>;
 type DatabaseClient = any;
 
 const ISSUE_SELECT = `
@@ -206,8 +208,49 @@ function mapArticle(row: RawArticleRow): Article {
     ),
     publishedAt: toText(row.published_at) || toText(row.created_at) || new Date(0).toISOString(),
     viewCount: Number(row.view_count ?? 0),
+    echoCount: Number(row.echo_count ?? 0),
     issue: mapIssue((row.issue as RawIssueRow | null | undefined) ?? null),
   };
+}
+
+async function populateEchoCounts(articles: Article[]): Promise<Article[]> {
+  if (articles.length === 0) {
+    return articles;
+  }
+
+  const articleIds = Array.from(
+    new Set(articles.map((article) => article.id).filter(Boolean))
+  );
+
+  if (articleIds.length === 0) {
+    return articles;
+  }
+
+  const { data, error } = await runWithAdminFallback<RawEchoRow[]>((db) =>
+    db.from("echoes").select("article_id").in("article_id", articleIds)
+  );
+
+  if (error || !data) {
+    console.error("[populateEchoCounts] 获取回响数量失败:", error);
+    return articles;
+  }
+
+  const counts = new Map<string, number>();
+
+  for (const row of data) {
+    const articleId = String(row.article_id ?? "");
+
+    if (!articleId) {
+      continue;
+    }
+
+    counts.set(articleId, (counts.get(articleId) ?? 0) + 1);
+  }
+
+  return articles.map((article) => ({
+    ...article,
+    echoCount: counts.get(article.id) ?? 0,
+  }));
 }
 
 export function groupArticlesByCategory(articles: Article[]): [string, Article[]][] {
@@ -334,7 +377,7 @@ export async function getLatestArticles(
     return [];
   }
 
-  return data.map(mapArticle);
+  return populateEchoCounts(data.map(mapArticle));
 }
 
 export async function getArticlesByCategory(
@@ -371,7 +414,7 @@ export async function getArticlesByCategory(
     return [];
   }
 
-  return (data ?? []).map(mapArticle);
+  return populateEchoCounts((data ?? []).map(mapArticle));
 }
 
 export async function getArticlesByIssue(issueId: string, limit = 100): Promise<Article[]> {
@@ -395,7 +438,7 @@ export async function getArticlesByIssue(issueId: string, limit = 100): Promise<
     return [];
   }
 
-  return data.map(mapArticle);
+  return populateEchoCounts(data.map(mapArticle));
 }
 
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
@@ -417,5 +460,6 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
     return null;
   }
 
-  return mapArticle(data);
+  const [article] = await populateEchoCounts([mapArticle(data)]);
+  return article ?? null;
 }

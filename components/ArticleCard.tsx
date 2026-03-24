@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen } from "lucide-react";
+import { ArrowRight, BookOpen, MessageCircle } from "lucide-react";
 import type { Article } from "@/lib/articles";
 import IssueBadge from "@/components/IssueBadge";
 
@@ -42,9 +42,15 @@ export default function ArticleCard({
           <Link href={`/articles/${article.slug}`} className="before:absolute before:inset-0">
             {article.title}
           </Link>
-          <span className="inline-flex shrink-0 items-center gap-2 text-sm font-serif text-[#9E9E9E] translate-y-2">
-            <BookOpen className="h-4 w-4 opacity-60" aria-hidden="true" />
-            <span className="tracking-wider">{article.viewCount}</span>
+          <span className="inline-flex shrink-0 items-center gap-4 text-sm font-serif text-[#9E9E9E] translate-y-2">
+            <span className="inline-flex items-center gap-2">
+              <BookOpen className="h-4 w-4 opacity-60" aria-hidden="true" />
+              <span className="tracking-wider">{article.viewCount}</span>
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <MessageCircle className="h-4 w-4 opacity-60" aria-hidden="true" />
+              <span className="tracking-wider">{article.echoCount}</span>
+            </span>
           </span>
         </h2>
 

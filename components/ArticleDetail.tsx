@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BookOpen } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import EchoSection from "@/components/EchoSection";
 import IssueBadge from "@/components/IssueBadge";
@@ -86,10 +86,15 @@ export default async function ArticleDetail({
             {article.title}
           </h1>
 
-          <div className="flex items-center justify-center gap-4 pt-4 text-sm font-serif italic text-[#9E9E9E]">
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-4 text-sm font-serif italic text-[#9E9E9E]">
             <span>作者：{article.author}</span>
             <span className="h-1 w-1 rounded-full bg-[#D7CCC8]" />
             <span>{formatDate(article.publishedAt)}</span>
+            <span className="h-1 w-1 rounded-full bg-[#D7CCC8]" />
+            <span className="inline-flex items-center gap-2 not-italic">
+              <BookOpen className="h-4 w-4 opacity-60" aria-hidden="true" />
+              <span>{article.viewCount}</span>
+            </span>
           </div>
         </header>
 
