@@ -6,6 +6,31 @@ import Link from 'next/link'
 import { ArrowLeft, Eye, EyeOff, Loader2, LockKeyhole } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
+function getResetPasswordErrorMessage(message?: string) {
+  if (!message) {
+    return '密码更新失败，请稍后重试。'
+  }
+
+  const normalizedMessage = message.toLowerCase()
+
+  if (
+    normalizedMessage.includes('same as the old password') ||
+    normalizedMessage.includes('should be different from the old password')
+  ) {
+    return '新密码不能与当前密码相同，请换一个密码。'
+  }
+
+  if (normalizedMessage.includes('password should be at least')) {
+    return '新密码至少需要 6 位字符。'
+  }
+
+  if (normalizedMessage.includes('auth session missing')) {
+    return '重置链接无效或已过期，请重新申请找回密码。'
+  }
+
+  return '密码更新失败，请稍后重试。'
+}
+
 function ResetPasswordPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -106,7 +131,7 @@ function ResetPasswordPageContent() {
 
     if (error) {
       console.error('[updateUser] 重置密码失败:', error)
-      setMessage(error.message || '密码更新失败，请稍后重试。')
+      setMessage(getResetPasswordErrorMessage(error.message))
       setIsError(true)
       setSaving(false)
       return
