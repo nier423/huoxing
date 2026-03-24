@@ -1,24 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Eye, EyeOff, Loader2, LockKeyhole } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
-function parseHashParams() {
-  if (typeof window === 'undefined') {
-    return new URLSearchParams()
-  }
-
-  return new URLSearchParams(window.location.hash.replace(/^#/, ''))
-}
-
-export default function ResetPasswordPage() {
+function ResetPasswordPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [checking, setChecking] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [isError, setIsError] = useState(false)
@@ -27,62 +20,25 @@ export default function ResetPasswordPage() {
   const [canReset, setCanReset] = useState(false)
 
   useEffect(() => {
-    const supabase = createClient()
-    if (!supabase) {
-      setMessage('服务配置缺失，请联系管理员。')
+    const ready = searchParams.get('ready') === '1'
+    const incomingMessage = searchParams.get('message')
+    const incomingType = searchParams.get('type')
+
+    setCanReset(ready)
+
+    if (incomingMessage) {
+      setMessage(incomingMessage)
+      setIsError(incomingType === 'error')
+    } else if (!ready) {
+      setMessage('重置链接无效或已过期，请重新申请找回密码。')
       setIsError(true)
-      setLoading(false)
-      return
+    } else {
+      setMessage('')
+      setIsError(false)
     }
 
-    const syncRecoveryState = async () => {
-      const hashParams = parseHashParams()
-      const hashError = hashParams.get('error_description')
-
-      if (hashError) {
-        setMessage(hashError)
-        setIsError(true)
-      }
-
-      const hasRecoveryHash = Boolean(hashParams.get('access_token')) || hashParams.get('type') === 'recovery'
-
-      let sessionResult = await supabase.auth.getSession()
-      let session = sessionResult.data.session
-
-      if (!session && hasRecoveryHash) {
-        await new Promise((resolve) => window.setTimeout(resolve, 400))
-        sessionResult = await supabase.auth.getSession()
-        session = sessionResult.data.session
-      }
-
-      if (session) {
-        setCanReset(true)
-        setMessage('')
-        setIsError(false)
-      } else if (!hashError) {
-        setCanReset(false)
-        setMessage('重置链接无效或已过期，请重新申请找回密码。')
-        setIsError(true)
-      }
-
-      setLoading(false)
-    }
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY' || Boolean(session)) {
-        setCanReset(Boolean(session))
-        setMessage('')
-        setIsError(false)
-        setLoading(false)
-      }
-    })
-
-    void syncRecoveryState()
-
-    return () => subscription.unsubscribe()
-  }, [])
+    setChecking(false)
+  }, [searchParams])
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -122,12 +78,12 @@ export default function ResetPasswordPage() {
 
     setPassword('')
     setConfirmPassword('')
-    setMessage('密码已更新，正在返回首页。')
+    setMessage('密码已更新，正在返回登录页。')
     setIsError(false)
     setSaving(false)
 
     window.setTimeout(() => {
-      router.push('/')
+      router.push('/login?message=密码已重置，请使用新密码登录。')
       router.refresh()
     }, 1200)
   }
@@ -166,7 +122,7 @@ export default function ResetPasswordPage() {
               </div>
             </div>
 
-            {loading ? (
+            {checking ? (
               <div className="flex items-center justify-center py-10 text-[#8D8D8D]">
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 <span className="font-youyou text-sm">正在验证重置链接...</span>
@@ -258,7 +214,7 @@ export default function ResetPasswordPage() {
               </form>
             )}
 
-            {!loading && !canReset && (
+            {!checking && !canReset && (
               <p className="mt-6 text-center text-sm text-[#8D8D8D] font-youyou">
                 需要重新获取邮件链接？
                 <Link
@@ -273,5 +229,13 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordPageContent />
+    </Suspense>
   )
 }
