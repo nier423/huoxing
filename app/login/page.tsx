@@ -162,20 +162,13 @@ function LoginPageContent() {
 
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-8 shadow-sm border border-[#E8E4DF]">
             {mode === 'forgot' ? (
-              <div className="mb-8 flex items-center justify-between rounded-2xl bg-[#F7F5F0] px-4 py-3">
+              <div className="mb-8 rounded-2xl bg-[#F7F5F0] px-4 py-3">
                 <div>
                   <p className="text-sm font-youyou text-[#3A3A3A]">找回密码</p>
                   <p className="mt-1 text-xs text-[#8D8D8D] font-youyou">
                     我们会向您的邮箱发送重置链接
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => switchMode('login')}
-                  className="text-sm font-youyou text-[#A1887F] hover:text-[#8D6E63] transition-colors"
-                >
-                  返回登录
-                </button>
               </div>
             ) : (
               <div className="flex mb-8 bg-[#F7F5F0] rounded-full p-1">
