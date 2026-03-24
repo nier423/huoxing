@@ -8,6 +8,46 @@ import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Eye, EyeOff, Sparkles } from 'lucide-react'
 
 type AuthMode = 'login' | 'register' | 'forgot'
+const FORGOT_PASSWORD_COOLDOWN_SECONDS = 60
+
+function getForgotPasswordErrorMessage(message?: string) {
+  if (!message) {
+    return '重置邮件发送失败，请稍后重试。'
+  }
+
+  const normalizedMessage = message.toLowerCase()
+
+  if (
+    normalizedMessage.includes('security purposes') ||
+    normalizedMessage.includes('after 60 seconds') ||
+    normalizedMessage.includes('over_email_send_rate_limit')
+  ) {
+    return '发送过于频繁，请至少等待 60 秒后再试。'
+  }
+
+  if (normalizedMessage.includes('rate limit')) {
+    return '当前发送过于频繁，请稍后再试。'
+  }
+
+  if (normalizedMessage.includes('redirect')) {
+    return '重置邮件发送失败，请检查 Supabase 的 Redirect URLs 是否已添加 /auth/callback。'
+  }
+
+  if (
+    normalizedMessage.includes('smtp') ||
+    normalizedMessage.includes('error sending') ||
+    normalizedMessage.includes('sending recovery email') ||
+    normalizedMessage.includes('email address not authorized')
+  ) {
+    return '邮件服务发送失败，请检查 Supabase 的 SMTP/Resend 配置。'
+  }
+
+  if (normalizedMessage.includes('captcha')) {
+    return '当前项目启用了验证码校验，找回密码请求缺少验证码。'
+  }
+
+  return '重置邮件发送失败，请稍后重试。'
+}
 
 function LoginPageContent() {
   const router = useRouter()
@@ -17,6 +57,7 @@ function LoginPageContent() {
   const [message, setMessage] = useState('')
   const [isError, setIsError] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [forgotPasswordCountdown, setForgotPasswordCountdown] = useState(0)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -49,6 +90,18 @@ function LoginPageContent() {
     }
   }, [router, searchParams])
 
+  useEffect(() => {
+    if (forgotPasswordCountdown <= 0) {
+      return
+    }
+
+    const timer = window.setInterval(() => {
+      setForgotPasswordCountdown((current) => (current > 0 ? current - 1 : 0))
+    }, 1000)
+
+    return () => window.clearInterval(timer)
+  }, [forgotPasswordCountdown])
+
   const clearFeedback = () => {
     setMessage('')
     setIsError(false)
@@ -75,17 +128,14 @@ function LoginPageContent() {
 
     if (error) {
       console.error('[resetPasswordForEmail] 发送重置邮件失败:', error)
-      if (error.message.toLowerCase().includes('redirect')) {
-        setMessage('重置邮件发送失败，请检查 Supabase 的 Redirect URLs 是否已添加 /auth/callback。')
-      } else {
-        setMessage('重置邮件发送失败，请稍后重试。')
-      }
+      setMessage(getForgotPasswordErrorMessage(error.message))
       setIsError(true)
       return
     }
 
     setMessage('如果该邮箱已注册，我们已发送重置密码邮件，请注意查收。')
     setIsError(false)
+    setForgotPasswordCountdown(FORGOT_PASSWORD_COOLDOWN_SECONDS)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,7 +189,13 @@ function LoginPageContent() {
     mode === 'login' ? '欢迎回来' : mode === 'register' ? '加入我们，点燃星火' : '通过邮箱找回密码'
 
   const submitText =
-    mode === 'login' ? '登录' : mode === 'register' ? '注册' : '发送重置邮件'
+    mode === 'login'
+      ? '登录'
+      : mode === 'register'
+        ? '注册'
+        : forgotPasswordCountdown > 0
+          ? `${forgotPasswordCountdown} 秒后可重新发送`
+          : '发送重置邮件'
 
   return (
     <div className="min-h-screen bg-[#F7F5F0] flex flex-col">
@@ -306,7 +362,7 @@ function LoginPageContent() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (mode === 'forgot' && forgotPasswordCountdown > 0)}
                 className="w-full py-3.5 bg-[#3A3A3A] hover:bg-[#2A2A2A] disabled:bg-[#8D8D8D] text-white font-youyou tracking-wider rounded-xl transition-all duration-300 disabled:cursor-not-allowed"
               >
                 {loading ? (
