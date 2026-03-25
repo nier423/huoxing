@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Loader2, Send, X } from "lucide-react";
 import { submitManuscript } from "@/app/actions/submissions";
+import SuccessLetterModal from "./success-letter-modal";
 
 const MAX_FILE_SIZE_BYTES = 4.5 * 1024 * 1024;
 const MAX_FILE_SIZE_LABEL = "4.5MB";
@@ -23,7 +24,7 @@ const SUCCESS_MODAL_CONTENT = {
   officialSiteWeChat: "xinghuotakan0308",
   officialSiteHint: "—— 那些文字，正等待您的共鸣",
   wechatTitle: "公众号：星火-好看",
-  wechatHint: "—— 关注并回复“加入”，进入我们的深度交流群，与更多同类一起点亮微光。",
+  wechatHint: "关注并回复“加入”，进入我们的深度交流群，与更多同类一起点亮微光。",
   signature: "《星火好看》编辑部 敬上",
 };
 
@@ -199,11 +200,10 @@ export default function SubmissionForm() {
                   <button
                     type="button"
                     onClick={clearFile}
-                    className={`ml-2 inline-flex h-4 w-4 items-center justify-center rounded-full text-[#8D8178] transition-opacity duration-150 hover:text-[#3A3A3A] focus:outline-none ${
-                      showFileRemoveButton
-                        ? "opacity-100 pointer-events-auto"
-                        : "opacity-0 pointer-events-none"
-                    }`}
+                    className={`ml-2 inline-flex h-4 w-4 items-center justify-center rounded-full text-[#8D8178] transition-opacity duration-150 hover:text-[#3A3A3A] focus:outline-none ${showFileRemoveButton
+                      ? "opacity-100 pointer-events-auto"
+                      : "opacity-0 pointer-events-none"
+                      }`}
                     aria-label="删除已选择文件"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -228,11 +228,10 @@ export default function SubmissionForm() {
 
         {message && !showSuccessModal ? (
           <div
-            className={`rounded-xl border px-4 py-3 text-sm font-youyou ${
-              isError
-                ? "border-red-100 bg-red-50 text-red-600"
-                : "border-green-100 bg-green-50 text-green-600"
-            }`}
+            className={`rounded-xl border px-4 py-3 text-sm font-youyou ${isError
+              ? "border-red-100 bg-red-50 text-red-600"
+              : "border-green-100 bg-green-50 text-green-600"
+              }`}
           >
             {message}
           </div>
@@ -248,67 +247,11 @@ export default function SubmissionForm() {
         </button>
       </form>
 
-      {showSuccessModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#2C2C2C]/40 px-4 py-8 backdrop-blur-sm">
-          <div className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-[#E8E4DF] bg-[#FDFBF7] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.18)] md:p-8">
-            <button
-              type="button"
-              onClick={handleCloseModal}
-              className="absolute right-5 top-5 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#E8E4DF] bg-white text-[#8D8D8D] transition-colors hover:text-[#5D5D5D]"
-              aria-label="关闭弹窗"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
-            <div className="pr-10">
-              <h2 className="font-youyou text-3xl text-[#3A3A3A] md:text-4xl">投稿已收到</h2>
-              <p className="mt-6 text-base leading-8 text-[#4B433E]">
-                {SUCCESS_MODAL_CONTENT.greeting}
-              </p>
-
-              <div className="mt-4 space-y-4 text-base leading-8 text-[#5A504A]">
-                {SUCCESS_MODAL_CONTENT.paragraphs.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-              </div>
-
-              <div className="mt-8 rounded-2xl border border-[#E8E4DF] bg-white/80 px-5 py-5">
-                <p className="text-sm tracking-[0.2em] text-[#A1887F]">
-                  {SUCCESS_MODAL_CONTENT.exploreTitle}
-                </p>
-
-                <div className="mt-5 space-y-6 text-base leading-8 text-[#4B433E]">
-                  <div>
-                    <p>
-                      <span className="font-youyou text-[#3A3A3A]">
-                        {SUCCESS_MODAL_CONTENT.officialSiteTitle}
-                      </span>
-                      {SUCCESS_MODAL_CONTENT.officialSiteText}
-                      <strong>{SUCCESS_MODAL_CONTENT.officialSiteWeChat}</strong>
-                    </p>
-                    <p className="mt-1 text-[#7C746D]">
-                      {SUCCESS_MODAL_CONTENT.officialSiteHint}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="font-youyou text-[#3A3A3A]">
-                      {SUCCESS_MODAL_CONTENT.wechatTitle}
-                    </p>
-                    <p className="mt-1 text-[#7C746D]">
-                      {SUCCESS_MODAL_CONTENT.wechatHint}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <p className="mt-8 text-right font-youyou text-[#8D6E63]">
-                {SUCCESS_MODAL_CONTENT.signature}
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <SuccessLetterModal
+        isOpen={showSuccessModal}
+        onClose={handleCloseModal}
+        content={SUCCESS_MODAL_CONTENT}
+      />
     </>
   );
 }
