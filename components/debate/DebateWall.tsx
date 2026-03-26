@@ -51,9 +51,9 @@ const HOT_LIKE_THRESHOLD = 5;
 const MAX_CHAR_LIMIT = 100;
 const MIN_BOARD_HEIGHT = 860;
 const MOBILE_MIN_AREA_HEIGHT = 360;
-const OVERLAP_RATIO_LIMIT = 0.25;
-const MOBILE_OVERLAP_RATIO_LIMIT = 0.2;
-const NOTE_SAFE_PADDING = 14;
+const OVERLAP_RATIO_LIMIT = 0.15;
+const MOBILE_OVERLAP_RATIO_LIMIT = 0.12;
+const NOTE_SAFE_PADDING = 24;
 const INITIAL_VISIBLE_COUNT = 6;
 const VISIBLE_COUNT_STEP = 6;
 
@@ -767,7 +767,7 @@ export default function DebateWall({
         </header>
 
         <section
-          className="relative mt-8 rounded-[2rem] border border-[#EFE4D3] bg-[linear-gradient(180deg,rgba(255,252,246,0.96),rgba(250,244,235,0.96))] px-3 py-6 shadow-[0_24px_60px_-48px_rgba(56,39,24,0.45)] md:mt-10 md:px-6 md:py-8"
+          className="relative mt-8 overflow-hidden rounded-[2rem] border border-[#EFE4D3] bg-[linear-gradient(180deg,rgba(255,252,246,0.96),rgba(250,244,235,0.96))] px-3 py-6 shadow-[0_24px_60px_-48px_rgba(56,39,24,0.45)] md:mt-10 md:px-6 md:py-8"
           style={{ minHeight: isMobile ? undefined : `${boardHeight + 80}px` }}
         >
           <div className="pointer-events-none absolute left-0 right-0 top-5 hidden grid-cols-2 text-center md:grid">
@@ -1143,8 +1143,8 @@ function NotesLayer({
     <div
       className={
         stacked
-          ? "absolute inset-0 overflow-hidden"
-          : `absolute inset-y-0 w-1/2 overflow-hidden ${side === "left" ? "left-0" : "right-0"}`
+          ? "absolute inset-0"
+          : `absolute inset-y-0 w-1/2 ${side === "left" ? "left-0" : "right-0"}`
       }
     >
       {notes.length === 0 ? (
@@ -1167,7 +1167,7 @@ function NotesLayer({
           );
           const isOwner = currentUserId === note.userId;
           const isBusy = busyIds.has(note.id);
-          const zIndex = liftOrder > 0 ? notes.length + liftOrder : index + 1;
+          const zIndex = liftOrder > 0 ? notes.length + liftOrder : notes.length - index;
 
           return (
             <motion.article
