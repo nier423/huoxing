@@ -8,7 +8,7 @@ interface HeroProps {
 }
 
 export default function Hero({ coverImage }: HeroProps) {
-  const posterSrc = coverImage || "/poster.jpg";
+  const posterSrc = coverImage || "/poster.webp";
 
   return (
     <section className="relative min-h-[100svh] md:h-[100svh] w-full flex flex-col justify-center items-center px-6 md:px-8 lg:px-12 xl:px-24 bg-[#F7F5F0] overflow-hidden pt-28 md:pt-12 lg:pt-0 pb-20 md:pb-0">

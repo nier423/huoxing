@@ -18,7 +18,6 @@ function formatDate(input: string | null) {
   }
 
   const date = new Date(input);
-
   if (Number.isNaN(date.getTime())) {
     return input;
   }
@@ -55,9 +54,7 @@ export default async function IssueDetailPage({ params }: PageProps) {
         <header className="mb-16 border-b border-[#DDD6CE] pb-10">
           <div className="flex flex-wrap items-center gap-3">
             <span className="h-1.5 w-1.5 rounded-full bg-[#A1887F] opacity-60" />
-            <p className="text-xs uppercase tracking-[0.35em] text-[#9E9E9E]">
-              Issue
-            </p>
+            <p className="text-xs uppercase tracking-[0.35em] text-[#9E9E9E]">Issue</p>
             <IssueBadge label={issue.label} />
             {issue.isCurrent ? (
               <span className="inline-flex items-center rounded-full border border-[#E7D7CD] px-3 py-1 text-xs text-[#A1887F]">
@@ -75,12 +72,20 @@ export default async function IssueDetailPage({ params }: PageProps) {
 
             <div className="space-y-3 text-sm text-[#7C746D] md:text-right">
               <p>发布时间：{formatDate(issue.publishedAt)}</p>
-              <Link
-                href="/issues"
-                className="inline-flex items-center rounded-full border border-[#D7CCC8] px-5 py-2 transition-colors hover:border-[#A1887F] hover:text-[#A1887F]"
-              >
-                返回归档
-              </Link>
+              <div className="flex flex-wrap items-center gap-3 md:justify-end">
+                <Link
+                  href={`/issues/${issue.slug}/debate`}
+                  className="inline-flex items-center rounded-full border border-[#D7CCC8] px-5 py-2 transition-colors hover:border-[#A1887F] hover:text-[#A1887F]"
+                >
+                  进入辩论
+                </Link>
+                <Link
+                  href="/issues"
+                  className="inline-flex items-center rounded-full border border-[#D7CCC8] px-5 py-2 transition-colors hover:border-[#A1887F] hover:text-[#A1887F]"
+                >
+                  返回归档
+                </Link>
+              </div>
             </div>
           </div>
         </header>
@@ -96,9 +101,7 @@ export default async function IssueDetailPage({ params }: PageProps) {
                 <div className="flex items-center gap-3 border-b border-[#DDD6CE] pb-4">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#A1887F] opacity-60" />
                   <h2 className="font-youyou text-3xl text-[#2C2C2C]">{category}</h2>
-                  <span className="text-sm text-[#8D8D8D]">
-                    {categoryArticles.length} 篇
-                  </span>
+                  <span className="text-sm text-[#8D8D8D]">{categoryArticles.length} 篇</span>
                 </div>
 
                 <div className="grid grid-cols-1 gap-x-12 gap-y-20 md:grid-cols-2">

@@ -9,15 +9,16 @@ export const viewport: Viewport = {
 };
 
 const liuYe = localFont({
-  src: "../public/fonts/liuye.ttf",
+  src: "../public/fonts/liuye.woff2",
   variable: "--font-liuye-local",
   display: "swap",
 });
 
 const youYou = localFont({
-  src: "../public/fonts/youyou.ttf",
+  src: "../public/fonts/youyou.woff2",
   variable: "--font-youyou-local",
   display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {

@@ -2,30 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@font-face {
-  font-family: 'LiuYe';
-  src: url('/fonts/liuye.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'YouYou';
-  src: url('/fonts/youyou.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'PingFangSaTuo';
-  src: url('/fonts/PingFangSaTuoTi-2.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
 @layer base {
   body {
     @apply bg-[#F7F5F0] text-[#3A3A3A] font-serif;
@@ -39,7 +15,7 @@
 }
 
 .font-note {
-  font-family: 'PingFangSaTuo', 'YouYou', serif;
+  font-family: "NSimSun", "SimSun", "Songti SC", "STSong", serif;
 }
 
 /* Custom utility for paper texture if needed */
