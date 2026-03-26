@@ -386,7 +386,9 @@ export async function toggleDebateCommentDislike(
     return { success: false, message: "只能踩对方阵营的纸条，不能背刺队友哦！" };
   }
 
-  const { data: existingDislike, error: existingDislikeError } = await supabase
+  const adminClient = createAdminClient();
+
+  const { data: existingDislike, error: existingDislikeError } = await adminClient
     .from("debate_comment_dislikes")
     .select("comment_id")
     .eq("comment_id", input.commentId)
@@ -402,7 +404,7 @@ export async function toggleDebateCommentDislike(
   }
 
   if (existingDislike) {
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await adminClient
       .from("debate_comment_dislikes")
       .delete()
       .eq("comment_id", input.commentId)
@@ -425,7 +427,7 @@ export async function toggleDebateCommentDislike(
     };
   }
 
-  const { error: insertError } = await supabase
+  const { error: insertError } = await adminClient
     .from("debate_comment_dislikes")
     .insert({
       comment_id: input.commentId,
