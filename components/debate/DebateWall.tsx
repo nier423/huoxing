@@ -767,7 +767,7 @@ export default function DebateWall({
         </header>
 
         <section
-          className="relative mt-8 overflow-hidden rounded-[2rem] border border-[#EFE4D3] bg-[linear-gradient(180deg,rgba(255,252,246,0.96),rgba(250,244,235,0.96))] px-3 py-6 shadow-[0_24px_60px_-48px_rgba(56,39,24,0.45)] md:mt-10 md:px-6 md:py-8"
+          className="isolate relative mt-8 overflow-hidden rounded-[2rem] border border-[#EFE4D3] bg-[linear-gradient(180deg,rgba(255,252,246,0.96),rgba(250,244,235,0.96))] px-3 py-6 shadow-[0_24px_60px_-48px_rgba(56,39,24,0.45)] md:mt-10 md:px-6 md:py-8"
           style={{ minHeight: isMobile ? undefined : `${boardHeight + 80}px` }}
         >
           <div className="pointer-events-none absolute left-0 right-0 top-5 hidden grid-cols-2 text-center md:grid">
@@ -896,7 +896,7 @@ export default function DebateWall({
         </section>
       </div>
 
-      <div className="fixed inset-x-0 bottom-4 z-40 mx-auto flex w-[calc(100%-1.5rem)] max-w-fit flex-col items-center gap-2 md:bottom-7">
+      <div className="fixed inset-x-0 bottom-4 z-[9900] mx-auto flex w-[calc(100%-1.5rem)] max-w-fit flex-col items-center gap-2 md:bottom-7">
         <AnimatePresence>
           {statusMessage ? (
             <motion.div
@@ -936,7 +936,7 @@ export default function DebateWall({
       <AnimatePresence>
         {isModalOpen ? (
           <motion.div
-            className="fixed inset-0 z-50 grid place-items-center bg-black/30 px-4"
+            className="fixed inset-0 z-[9999] grid place-items-center bg-black/30 px-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1028,7 +1028,7 @@ function MobileNotesSection({
   const noteCount = countLabel;
 
   return (
-    <section className="overflow-hidden rounded-[1.7rem] border border-[#E8DCC9] bg-[linear-gradient(180deg,rgba(255,252,246,0.96),rgba(249,242,233,0.96))] p-4 shadow-[0_18px_40px_-32px_rgba(56,39,24,0.45)]">
+    <section className="isolate overflow-hidden rounded-[1.7rem] border border-[#E8DCC9] bg-[linear-gradient(180deg,rgba(255,252,246,0.96),rgba(249,242,233,0.96))] p-4 shadow-[0_18px_40px_-32px_rgba(56,39,24,0.45)]">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
           <h3 className="font-youyou text-2xl text-[#2F241A]">{title}</h3>
