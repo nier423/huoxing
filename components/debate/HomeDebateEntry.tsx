@@ -32,7 +32,7 @@ export default function HomeDebateEntry({
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.9),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(201,87,44,0.18),transparent_36%)]" />
 
-        <div className="relative min-h-[12.5rem] pr-[7.75rem]">
+        <div className="relative z-10 min-h-[12.5rem] pr-[7.75rem] md:pr-0">
           <div className="inline-flex items-center gap-2 rounded-full bg-[#7F2F17] px-3 py-1 text-[0.68rem] tracking-[0.24em] text-[#FFF3EB] shadow-[0_10px_18px_-14px_rgba(74,26,10,0.65)]">
             <span className="h-2 w-2 rounded-full bg-[#FFD17D]" />
             本期辩论招募中
