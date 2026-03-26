@@ -55,7 +55,7 @@ export default async function IssueDebatePage({ params }: PageProps) {
           </h1>
 
           <p className="mt-4 max-w-3xl font-serif text-base leading-loose text-[#6C665F] md:text-lg">
-            纸条按正反两边陈列。登录后可以留言、删除自己的纸条，也可以给别人的纸条点赞或取消点赞。
+            游戏规则：可以粘贴/删除自己的纸条。可以点赞她人纸条，不能点赞自己纸条。需要注册登录后吵架。
           </p>
         </header>
 
