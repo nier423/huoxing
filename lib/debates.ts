@@ -13,6 +13,8 @@ export interface DebateComment {
   createdAt: string;
   likeCount: number;
   likedByViewer: boolean;
+  dislikeCount: number;
+  dislikedByViewer: boolean;
 }
 
 export interface DebateTopic {
@@ -51,7 +53,9 @@ function mapTopic(row: RawRow): Omit<DebateTopic, "comments"> {
 function mapComment(
   row: RawRow,
   likeCounts: Map<string, number>,
-  viewerLikedCommentIds: Set<string>
+  viewerLikedCommentIds: Set<string>,
+  dislikeCounts: Map<string, number>,
+  viewerDislikedCommentIds: Set<string>
 ): DebateComment {
   const id = String(row.id ?? "");
 
@@ -64,6 +68,8 @@ function mapComment(
     createdAt: toText(row.created_at) || new Date(0).toISOString(),
     likeCount: likeCounts.get(id) ?? 0,
     likedByViewer: viewerLikedCommentIds.has(id),
+    dislikeCount: dislikeCounts.get(id) ?? 0,
+    dislikedByViewer: viewerDislikedCommentIds.has(id),
   };
 }
 
@@ -124,47 +130,57 @@ export async function getDebateTopicsByIssueId(
   const commentRows = (commentsData as RawRow[] | null) ?? [];
   const commentIds = commentRows.map((row) => String(row.id ?? "")).filter(Boolean);
   const likeCounts = new Map<string, number>();
+  const dislikeCounts = new Map<string, number>();
 
   if (commentIds.length > 0) {
-    const { data: likesData, error: likesError } = await adminClient
-      .from("debate_comment_likes")
-      .select("comment_id")
-      .in("comment_id", commentIds);
+    const [likesResult, dislikesResult] = await Promise.all([
+      adminClient.from("debate_comment_likes").select("comment_id").in("comment_id", commentIds),
+      adminClient.from("debate_comment_dislikes").select("comment_id").in("comment_id", commentIds)
+    ]);
 
-    if (likesError) {
-      console.error("[getDebateTopicsByIssueId] Failed to load like counts:", likesError);
+    if (likesResult.error) {
+      console.error("[getDebateTopicsByIssueId] Failed to load like counts:", likesResult.error);
     } else {
-      for (const row of (likesData as RawRow[] | null) ?? []) {
+      for (const row of (likesResult.data as RawRow[] | null) ?? []) {
         const commentId = String(row.comment_id ?? "");
-        if (!commentId) {
-          continue;
-        }
+        if (commentId) likeCounts.set(commentId, (likeCounts.get(commentId) ?? 0) + 1);
+      }
+    }
 
-        likeCounts.set(commentId, (likeCounts.get(commentId) ?? 0) + 1);
+    if (dislikesResult.error) {
+      console.error("[getDebateTopicsByIssueId] Failed to load dislike counts:", dislikesResult.error);
+    } else {
+      for (const row of (dislikesResult.data as RawRow[] | null) ?? []) {
+        const commentId = String(row.comment_id ?? "");
+        if (commentId) dislikeCounts.set(commentId, (dislikeCounts.get(commentId) ?? 0) + 1);
       }
     }
   }
 
   const viewerLikedCommentIds = new Set<string>();
+  const viewerDislikedCommentIds = new Set<string>();
 
   if (viewerUserId && commentIds.length > 0) {
-    const { data: viewerLikesData, error: viewerLikesError } = await adminClient
-      .from("debate_comment_likes")
-      .select("comment_id")
-      .eq("user_id", viewerUserId)
-      .in("comment_id", commentIds);
+    const [viewerLikesResult, viewerDislikesResult] = await Promise.all([
+      adminClient.from("debate_comment_likes").select("comment_id").eq("user_id", viewerUserId).in("comment_id", commentIds),
+      adminClient.from("debate_comment_dislikes").select("comment_id").eq("user_id", viewerUserId).in("comment_id", commentIds)
+    ]);
 
-    if (viewerLikesError) {
-      console.error(
-        "[getDebateTopicsByIssueId] Failed to load viewer like state:",
-        viewerLikesError
-      );
+    if (viewerLikesResult.error) {
+      console.error("[getDebateTopicsByIssueId] Failed to load viewer like state:", viewerLikesResult.error);
     } else {
-      for (const row of (viewerLikesData as RawRow[] | null) ?? []) {
+      for (const row of (viewerLikesResult.data as RawRow[] | null) ?? []) {
         const commentId = String(row.comment_id ?? "");
-        if (commentId) {
-          viewerLikedCommentIds.add(commentId);
-        }
+        if (commentId) viewerLikedCommentIds.add(commentId);
+      }
+    }
+
+    if (viewerDislikesResult.error) {
+      console.error("[getDebateTopicsByIssueId] Failed to load viewer dislike state:", viewerDislikesResult.error);
+    } else {
+      for (const row of (viewerDislikesResult.data as RawRow[] | null) ?? []) {
+        const commentId = String(row.comment_id ?? "");
+        if (commentId) viewerDislikedCommentIds.add(commentId);
       }
     }
   }
@@ -172,7 +188,13 @@ export async function getDebateTopicsByIssueId(
   const commentsByTopicId = new Map<string, DebateComment[]>();
 
   for (const row of commentRows) {
-    const comment = mapComment(row, likeCounts, viewerLikedCommentIds);
+    const comment = mapComment(
+      row, 
+      likeCounts, 
+      viewerLikedCommentIds,
+      dislikeCounts,
+      viewerDislikedCommentIds
+    );
     const items = commentsByTopicId.get(comment.topicId) ?? [];
     items.push(comment);
     commentsByTopicId.set(comment.topicId, items);

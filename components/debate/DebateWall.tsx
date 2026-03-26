@@ -3,11 +3,12 @@
 import type { MutableRefObject, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Heart, X } from "lucide-react";
+import { Heart, X, ThumbsDown } from "lucide-react";
 import {
   createDebateComment,
   deleteDebateComment,
   toggleDebateCommentLike,
+  toggleDebateCommentDislike,
 } from "@/app/actions/debates";
 import type { DebateComment, DebateSide, DebateTopic } from "@/lib/debates";
 
@@ -492,6 +493,15 @@ export default function DebateWall({
     [sortedConComments, visibleCounts.con]
   );
 
+  const viewerStance = useMemo(() => {
+    if (!currentUserId || !activeTopic) return null;
+    const isPro = activeTopic.comments.some((c) => c.userId === currentUserId && c.side === "pro");
+    if (isPro) return "pro";
+    const isCon = activeTopic.comments.some((c) => c.userId === currentUserId && c.side === "con");
+    if (isCon) return "con";
+    return null;
+  }, [currentUserId, activeTopic]);
+
   const remainingCountBySide = useMemo(
     () => ({
       pro: Math.max(0, sortedProComments.length - proComments.length),
@@ -691,6 +701,52 @@ export default function DebateWall({
     })();
   };
 
+  const handleToggleDislike = (comment: DebateComment) => {
+    if (!isLoggedIn) {
+      showStatus("请先登录后再踩。", "error");
+      return;
+    }
+
+    if (viewerStance === null) {
+      showStatus("贴上你的第一张纸条，亮明阵营后就可以踩对方啦！", "info");
+      return;
+    }
+
+    if (viewerStance === comment.side) {
+      showStatus("只能踩对方阵营的纸条，不能背刺队友哦！", "info");
+      return;
+    }
+
+    setBusyIds((current) => new Set(current).add(comment.id));
+    
+    void (async () => {
+      const result = await toggleDebateCommentDislike({
+        commentId: comment.id,
+        issueSlug,
+      });
+
+      setBusyIds((current) => {
+        const next = new Set(current);
+        next.delete(comment.id);
+        return next;
+      });
+
+      if (!result.success || typeof result.disliked !== "boolean") {
+        showStatus(result.message, "error");
+        return;
+      }
+
+      setTopics((currentTopics) =>
+        updateCommentInTopics(currentTopics, comment.id, (currentComment) => ({
+          ...currentComment,
+          dislikeCount: result.dislikeCount ?? currentComment.dislikeCount,
+          dislikedByViewer: result.disliked!,
+        }))
+      );
+      showStatus(result.message, "success");
+    })();
+  };
+
   if (!activeTopic) {
     return (
       <section className="rounded-[2rem] border border-[#E8E4DF] bg-[#FFFDF9] px-6 py-12 text-center text-[#6C665F] shadow-[0_24px_60px_-48px_rgba(56,39,24,0.45)]">
@@ -798,6 +854,8 @@ export default function DebateWall({
               currentUserId={currentUserId}
               busyIds={busyIds}
               onToggleLike={handleToggleLike}
+              onToggleDislike={handleToggleDislike}
+              viewerStance={viewerStance}
               onDelete={handleDeleteComment}
               onBringFront={bringToFront}
               side="left"
@@ -813,6 +871,8 @@ export default function DebateWall({
               currentUserId={currentUserId}
               busyIds={busyIds}
               onToggleLike={handleToggleLike}
+              onToggleDislike={handleToggleDislike}
+              viewerStance={viewerStance}
               onDelete={handleDeleteComment}
               onBringFront={bringToFront}
               side="right"
@@ -839,6 +899,8 @@ export default function DebateWall({
                 currentUserId={currentUserId}
                 busyIds={busyIds}
                 onToggleLike={handleToggleLike}
+                onToggleDislike={handleToggleDislike}
+                viewerStance={viewerStance}
                 onDelete={handleDeleteComment}
                 onBringFront={bringToFront}
                 side="left"
@@ -865,6 +927,8 @@ export default function DebateWall({
                 currentUserId={currentUserId}
                 busyIds={busyIds}
                 onToggleLike={handleToggleLike}
+                onToggleDislike={handleToggleDislike}
+                viewerStance={viewerStance}
                 onDelete={handleDeleteComment}
                 onBringFront={bringToFront}
                 side="right"
@@ -1103,6 +1167,8 @@ interface NotesLayerProps {
   currentUserId: string | null;
   busyIds: Set<string>;
   onToggleLike: (comment: DebateComment) => void;
+  onToggleDislike: (comment: DebateComment) => void;
+  viewerStance: DebateSide | null;
   onDelete: (commentId: string) => void;
   onBringFront: (commentId: string, options?: BringToFrontOptions) => void;
   side: "left" | "right";
@@ -1121,6 +1187,8 @@ function NotesLayer({
   currentUserId,
   busyIds,
   onToggleLike,
+  onToggleDislike,
+  viewerStance,
   onDelete,
   onBringFront,
   side,
@@ -1269,41 +1337,76 @@ function NotesLayer({
 
               {isOwner ? (
                 <div
-                  className={`pointer-events-none absolute flex items-center gap-1 text-[#6E6254] ${
+                  className={`pointer-events-none absolute flex items-center gap-2.5 text-[#6E6254] ${
                     compact ? "bottom-2.5 right-2.5" : "bottom-3 right-3"
                   }`}
                 >
-                  <Heart
-                    className={compact ? "h-3 w-3" : "h-3.5 w-3.5"}
-                    strokeWidth={1.8}
-                  />
-                  <span className={compact ? "text-[11px]" : "text-xs"}>{note.likeCount}</span>
+                  <div className="flex items-center gap-1">
+                    <Heart className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} strokeWidth={1.8} />
+                    <span className={compact ? "text-[11px]" : "text-xs"}>{note.likeCount}</span>
+                  </div>
+                  {note.dislikeCount > 0 && (
+                    <div className="flex items-center gap-1">
+                      <ThumbsDown className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} strokeWidth={1.8} />
+                      <span className={compact ? "text-[11px]" : "text-xs"}>{note.dislikeCount}</span>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onPointerDown={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                  }}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onToggleLike(note);
-                  }}
-                  disabled={isBusy}
-                  aria-label={note.likedByViewer ? "取消点赞" : "点赞"}
-                  className={`absolute flex items-center gap-1 text-[#6E6254] transition hover:text-[#B85D61] disabled:cursor-not-allowed disabled:opacity-60 ${
+                <div
+                  className={`absolute flex items-center gap-3 text-[#6E6254] transition ${
                     compact ? "bottom-2.5 right-2.5" : "bottom-3 right-3"
                   }`}
                 >
-                  <Heart
-                    className={compact ? "h-3 w-3" : "h-3.5 w-3.5"}
-                    strokeWidth={1.8}
-                    fill={note.likedByViewer ? "currentColor" : "none"}
-                  />
-                  <span className={compact ? "text-[11px]" : "text-xs"}>{note.likeCount}</span>
-                </button>
+                  <button
+                    type="button"
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onToggleLike(note);
+                    }}
+                    disabled={isBusy}
+                    aria-label={note.likedByViewer ? "取消点赞" : "点赞"}
+                    className="flex items-center gap-1 hover:text-[#B85D61] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Heart
+                      className={compact ? "h-3 w-3" : "h-3.5 w-3.5"}
+                      strokeWidth={1.8}
+                      fill={note.likedByViewer ? "currentColor" : "none"}
+                    />
+                    <span className={compact ? "text-[11px]" : "text-xs"}>{note.likeCount}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onToggleDislike(note);
+                    }}
+                    disabled={isBusy || viewerStance === note.side}
+                    title={viewerStance === note.side ? "不能踩队友哦" : "踩"}
+                    aria-label={note.dislikedByViewer ? "取消踩" : "踩"}
+                    className="flex items-center gap-1 hover:text-[#42506B] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <ThumbsDown
+                      className={compact ? "h-3 w-3" : "h-3.5 w-3.5"}
+                      strokeWidth={1.8}
+                      fill={note.dislikedByViewer ? "currentColor" : "none"}
+                    />
+                    {note.dislikeCount > 0 && (
+                      <span className={compact ? "text-[11px]" : "text-xs"}>{note.dislikeCount}</span>
+                    )}
+                  </button>
+                </div>
               )}
 
             </motion.article>
