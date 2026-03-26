@@ -345,16 +345,30 @@ export async function toggleDebateCommentDislike(
     return { success: false, message: "请先登录后再踩。" };
   }
 
-  const { data: comment, error: commentError } = await supabase
-    .from("debate_comments")
-    .select("id, user_id, topic_id, side")
-    .eq("id", input.commentId)
-    .maybeSingle();
+  const adminClient = createAdminClient();
 
-  if (commentError) {
-    console.error("[toggleDebateCommentDislike] Failed to load comment:", commentError);
+  // Run all three validation queries in parallel
+  const [commentResult, userCommentsResult, existingDislikeResult] = await Promise.all([
+    supabase
+      .from("debate_comments")
+      .select("id, user_id, topic_id, side")
+      .eq("id", input.commentId)
+      .maybeSingle(),
+    // We'll fill topic_id after we get comment — separate fetch below
+    // Placeholder: resolved after comment fetch
+    Promise.resolve({ data: null as { side: string }[] | null, error: null }),
+    adminClient
+      .from("debate_comment_dislikes")
+      .select("comment_id", { count: "exact" })
+      .eq("comment_id", input.commentId)
+  ]);
+
+  if (commentResult.error) {
+    console.error("[toggleDebateCommentDislike] Failed to load comment:", commentResult.error);
     return { success: false, message: "暂时无法确认这张纸条，请稍后重试。" };
   }
+
+  const comment = commentResult.data;
 
   if (!comment) {
     return { success: false, message: "这张纸条已经不存在了。" };
@@ -364,19 +378,33 @@ export async function toggleDebateCommentDislike(
     return { success: false, message: "不能踩自己的纸条。" };
   }
 
-  const { data: userComments, error: userCommentsError } = await supabase
-    .from("debate_comments")
-    .select("side")
-    .eq("user_id", user.id)
-    .eq("topic_id", comment.topic_id)
-    .limit(1);
+  // Now fetch user's side and existing dislike in parallel (we need topic_id from comment)
+  const [userCommentsResult2, existingDislikeResult2] = await Promise.all([
+    supabase
+      .from("debate_comments")
+      .select("side")
+      .eq("user_id", user.id)
+      .eq("topic_id", comment.topic_id)
+      .limit(1),
+    adminClient
+      .from("debate_comment_dislikes")
+      .select("comment_id", { count: "exact" })
+      .eq("comment_id", input.commentId)
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
 
-  if (userCommentsError) {
-    console.error("[toggleDebateCommentDislike] Failed to load user comments:", userCommentsError);
+  // Use total count from the broader query (without user filter)
+  const currentDislikeCount = (existingDislikeResult.count ?? 0);
+
+  if (userCommentsResult2.error) {
+    console.error("[toggleDebateCommentDislike] Failed to load user comments:", userCommentsResult2.error);
     return { success: false, message: "暂时无法确认你的阵营，请稍后重试。" };
   }
 
-  const userSide = userComments && userComments.length > 0 ? userComments[0].side : null;
+  const userSide = userCommentsResult2.data && userCommentsResult2.data.length > 0
+    ? userCommentsResult2.data[0].side
+    : null;
 
   if (!userSide) {
     return { success: false, message: "贴上你的第一张纸条，亮明阵营后就可以踩对方啦！" };
@@ -386,22 +414,12 @@ export async function toggleDebateCommentDislike(
     return { success: false, message: "只能踩对方阵营的纸条，不能背刺队友哦！" };
   }
 
-  const adminClient = createAdminClient();
-
-  const { data: existingDislike, error: existingDislikeError } = await adminClient
-    .from("debate_comment_dislikes")
-    .select("comment_id")
-    .eq("comment_id", input.commentId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (existingDislikeError) {
-    console.error(
-      "[toggleDebateCommentDislike] Failed to load existing dislike:",
-      existingDislikeError
-    );
+  if (existingDislikeResult2.error) {
+    console.error("[toggleDebateCommentDislike] Failed to load existing dislike:", existingDislikeResult2.error);
     return { success: false, message: "暂时无法确认状态，请稍后重试。" };
   }
+
+  const existingDislike = existingDislikeResult2.data;
 
   if (existingDislike) {
     const { error: deleteError } = await adminClient
@@ -415,14 +433,13 @@ export async function toggleDebateCommentDislike(
       return { success: false, message: "撤回失败，请稍后重试。" };
     }
 
-    const dislikeCount = await getDebateCommentDislikeCount(input.commentId);
     revalidateDebatePaths(input.issueSlug);
 
     return {
       success: true,
       message: "撤回啦。",
       commentId: input.commentId,
-      dislikeCount,
+      dislikeCount: Math.max(0, currentDislikeCount - 1),
       disliked: false,
     };
   }
@@ -439,14 +456,13 @@ export async function toggleDebateCommentDislike(
     return { success: false, message: "操作失败，请稍后重试。" };
   }
 
-  const dislikeCount = await getDebateCommentDislikeCount(input.commentId);
   revalidateDebatePaths(input.issueSlug);
 
   return {
     success: true,
     message: "已踩！",
     commentId: input.commentId,
-    dislikeCount,
+    dislikeCount: currentDislikeCount + 1,
     disliked: true,
   };
 }
