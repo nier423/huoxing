@@ -3,7 +3,7 @@
 import type { MutableRefObject, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Heart, Trash2 } from "lucide-react";
+import { Heart, X } from "lucide-react";
 import {
   createDebateComment,
   deleteDebateComment,
@@ -383,7 +383,7 @@ export default function DebateWall({
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [pendingCommentId, setPendingCommentId] = useState<string | null>(null);
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusTone, setStatusTone] = useState<StatusTone>("info");
   const [isPending, startTransition] = useTransition();
@@ -623,28 +623,31 @@ export default function DebateWall({
       return;
     }
 
-    setPendingCommentId(commentId);
-    startTransition(() => {
-      void (async () => {
-        const result = await deleteDebateComment({
-          commentId,
-          issueSlug,
-        });
+    setBusyIds((current) => new Set(current).add(commentId));
+    
+    void (async () => {
+      const result = await deleteDebateComment({
+        commentId,
+        issueSlug,
+      });
 
-        setPendingCommentId(null);
+      setBusyIds((current) => {
+        const next = new Set(current);
+        next.delete(commentId);
+        return next;
+      });
 
-        if (!result.success) {
-          showStatus(result.message, "error");
-          return;
-        }
+      if (!result.success) {
+        showStatus(result.message, "error");
+        return;
+      }
 
-        setTopics((currentTopics) =>
-          updateCommentInTopics(currentTopics, commentId, () => null)
-        );
-        setActiveId((current) => (current === commentId ? null : current));
-        showStatus(result.message, "success");
-      })();
-    });
+      setTopics((currentTopics) =>
+        updateCommentInTopics(currentTopics, commentId, () => null)
+      );
+      setActiveId((current) => (current === commentId ? null : current));
+      showStatus(result.message, "success");
+    })();
   };
 
   const handleToggleLike = (comment: DebateComment) => {
@@ -658,31 +661,34 @@ export default function DebateWall({
       return;
     }
 
-    setPendingCommentId(comment.id);
-    startTransition(() => {
-      void (async () => {
-        const result = await toggleDebateCommentLike({
-          commentId: comment.id,
-          issueSlug,
-        });
+    setBusyIds((current) => new Set(current).add(comment.id));
+    
+    void (async () => {
+      const result = await toggleDebateCommentLike({
+        commentId: comment.id,
+        issueSlug,
+      });
 
-        setPendingCommentId(null);
+      setBusyIds((current) => {
+        const next = new Set(current);
+        next.delete(comment.id);
+        return next;
+      });
 
-        if (!result.success || typeof result.liked !== "boolean") {
-          showStatus(result.message, "error");
-          return;
-        }
+      if (!result.success || typeof result.liked !== "boolean") {
+        showStatus(result.message, "error");
+        return;
+      }
 
-        setTopics((currentTopics) =>
-          updateCommentInTopics(currentTopics, comment.id, (currentComment) => ({
-            ...currentComment,
-            likeCount: result.likeCount ?? currentComment.likeCount,
-            likedByViewer: result.liked!,
-          }))
-        );
-        showStatus(result.message, "success");
-      })();
-    });
+      setTopics((currentTopics) =>
+        updateCommentInTopics(currentTopics, comment.id, (currentComment) => ({
+          ...currentComment,
+          likeCount: result.likeCount ?? currentComment.likeCount,
+          likedByViewer: result.liked!,
+        }))
+      );
+      showStatus(result.message, "success");
+    })();
   };
 
   if (!activeTopic) {
@@ -790,7 +796,7 @@ export default function DebateWall({
               activeId={activeId}
               liftedOrder={liftedOrder}
               currentUserId={currentUserId}
-              pendingCommentId={pendingCommentId}
+              busyIds={busyIds}
               onToggleLike={handleToggleLike}
               onDelete={handleDeleteComment}
               onBringFront={bringToFront}
@@ -805,7 +811,7 @@ export default function DebateWall({
               activeId={activeId}
               liftedOrder={liftedOrder}
               currentUserId={currentUserId}
-              pendingCommentId={pendingCommentId}
+              busyIds={busyIds}
               onToggleLike={handleToggleLike}
               onDelete={handleDeleteComment}
               onBringFront={bringToFront}
@@ -831,7 +837,7 @@ export default function DebateWall({
                 activeId={activeId}
                 liftedOrder={liftedOrder}
                 currentUserId={currentUserId}
-                pendingCommentId={pendingCommentId}
+                busyIds={busyIds}
                 onToggleLike={handleToggleLike}
                 onDelete={handleDeleteComment}
                 onBringFront={bringToFront}
@@ -857,7 +863,7 @@ export default function DebateWall({
                 activeId={activeId}
                 liftedOrder={liftedOrder}
                 currentUserId={currentUserId}
-                pendingCommentId={pendingCommentId}
+                busyIds={busyIds}
                 onToggleLike={handleToggleLike}
                 onDelete={handleDeleteComment}
                 onBringFront={bringToFront}
@@ -1095,7 +1101,7 @@ interface NotesLayerProps {
   activeId: string | null;
   liftedOrder: Record<string, number>;
   currentUserId: string | null;
-  pendingCommentId: string | null;
+  busyIds: Set<string>;
   onToggleLike: (comment: DebateComment) => void;
   onDelete: (commentId: string) => void;
   onBringFront: (commentId: string, options?: BringToFrontOptions) => void;
@@ -1113,7 +1119,7 @@ function NotesLayer({
   activeId,
   liftedOrder,
   currentUserId,
-  pendingCommentId,
+  busyIds,
   onToggleLike,
   onDelete,
   onBringFront,
@@ -1160,8 +1166,7 @@ function NotesLayer({
             compact
           );
           const isOwner = currentUserId === note.userId;
-          const isBusy = pendingCommentId === note.id && isPending;
-          const showDeleteAction = isOwner && activeId === note.id;
+          const isBusy = busyIds.has(note.id);
           const zIndex = liftOrder > 0 ? notes.length + liftOrder : index + 1;
 
           return (
@@ -1229,9 +1234,28 @@ function NotesLayer({
               ) : null}
 
               {isOwner ? (
-                <span className="absolute left-3 top-3 rounded-full bg-white/65 px-2 py-0.5 text-[10px] tracking-[0.16em] text-[#6B5846]">
-                  我的纸条
-                </span>
+                <>
+                  <span className="absolute left-3 top-3 rounded-full bg-white/65 px-2 py-0.5 text-[10px] tracking-[0.16em] text-[#6B5846]">
+                    我的纸条
+                  </span>
+                  <button
+                    type="button"
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onDelete(note.id);
+                    }}
+                    disabled={isBusy}
+                    title="删除纸条"
+                    className="absolute right-3 top-3 rounded-full p-[2px] text-[#A69785] transition hover:bg-[#E8DCC9] hover:text-[#584C42] disabled:opacity-60"
+                  >
+                    <X className={compact ? "h-[14px] w-[14px]" : "h-4 w-4"} strokeWidth={2.5} />
+                  </button>
+                </>
               ) : null}
 
               <p
@@ -1258,7 +1282,12 @@ function NotesLayer({
               ) : (
                 <button
                   type="button"
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
                   onClick={(event) => {
+                    event.preventDefault();
                     event.stopPropagation();
                     onToggleLike(note);
                   }}
@@ -1277,51 +1306,6 @@ function NotesLayer({
                 </button>
               )}
 
-              <AnimatePresence>
-                {showDeleteAction ? (
-                  <motion.div
-                    initial={{ opacity: 0, x: -8, scale: 0.96 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: -8, scale: 0.96 }}
-                    className={`absolute z-[999] flex flex-col gap-1 rounded-full border border-[#DECBB1] bg-[#FFF8EE] px-3 py-1.5 shadow-xl ${
-                      compact ? "bottom-3 left-3" : "bottom-4 left-4"
-                    }`}
-                  >
-                    {isOwner ? (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onDelete(note.id);
-                        }}
-                        disabled={isBusy}
-                        className="inline-flex items-center gap-1 whitespace-nowrap text-xs leading-none text-[#6B5846] disabled:opacity-60"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        {isBusy ? "删除中..." : "删除"}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onToggleLike(note);
-                        }}
-                        disabled={isBusy}
-                        className="whitespace-nowrap text-xs leading-none text-[#6B5846] disabled:opacity-60"
-                      >
-                        {isBusy
-                          ? note.likedByViewer
-                            ? "取消中..."
-                            : "点赞中..."
-                          : note.likedByViewer
-                            ? "取消点赞"
-                            : "点赞"}
-                      </button>
-                    )}
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
             </motion.article>
           );
         })}
