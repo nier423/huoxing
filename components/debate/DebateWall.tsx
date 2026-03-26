@@ -55,6 +55,8 @@ const MOBILE_MIN_AREA_HEIGHT = 360;
 const OVERLAP_RATIO_LIMIT = 0.15;
 const MOBILE_OVERLAP_RATIO_LIMIT = 0.12;
 const NOTE_SAFE_PADDING = 24;
+const MOBILE_NOTE_SAFE_PADDING = 10;
+const MOBILE_ROTATION_MARGIN = 8;
 const INITIAL_VISIBLE_COUNT = 6;
 const VISIBLE_COUNT_STEP = 6;
 
@@ -62,10 +64,10 @@ function getNoteSize(text: string, compact = false) {
   const len = text.length;
 
   if (compact) {
-    const width = len >= 56 ? 212 : len >= 28 ? 198 : 186;
+    const width = len >= 72 ? 232 : len >= 40 ? 220 : 208;
     const fontSize = 14;
     const lineHeight = Math.round(fontSize * 1.72);
-    const approxCharsPerLine = width >= 212 ? 11 : width >= 198 ? 10 : 9;
+    const approxCharsPerLine = width >= 232 ? 13 : width >= 220 ? 12 : 11;
     const paragraphs = text.split("\n");
     const lines = Math.max(
       1,
@@ -144,12 +146,13 @@ function getBoundedNotePosition(
   compact = false
 ) {
   const size = getNoteSize(note.content, compact);
-  const safeWidth = Math.max(areaWidth, size.width + NOTE_SAFE_PADDING * 2);
-  const safeHeight = Math.max(areaHeight, size.minHeight + NOTE_SAFE_PADDING * 2);
-  const maxLeft = Math.max(NOTE_SAFE_PADDING, safeWidth - size.width - NOTE_SAFE_PADDING);
-  const maxTop = Math.max(NOTE_SAFE_PADDING, safeHeight - size.minHeight - NOTE_SAFE_PADDING);
-  const leftPx = clamp((note.x / 100) * safeWidth, NOTE_SAFE_PADDING, maxLeft);
-  const topPx = clamp(note.y, NOTE_SAFE_PADDING, maxTop);
+  const edgePadding = compact ? MOBILE_NOTE_SAFE_PADDING + MOBILE_ROTATION_MARGIN : NOTE_SAFE_PADDING;
+  const safeWidth = Math.max(areaWidth, size.width + edgePadding * 2);
+  const safeHeight = Math.max(areaHeight, size.minHeight + edgePadding * 2);
+  const maxLeft = Math.max(edgePadding, safeWidth - size.width - edgePadding);
+  const maxTop = Math.max(edgePadding, safeHeight - size.minHeight - edgePadding);
+  const leftPx = clamp((note.x / 100) * safeWidth, edgePadding, maxLeft);
+  const topPx = clamp(note.y, edgePadding, maxTop);
 
   return {
     leftPercent: (leftPx / safeWidth) * 100,
@@ -299,7 +302,7 @@ function buildDesktopNoteLayout(
 }
 
 function buildMobileNoteLayout(notes: PositionedComment[], areaWidth: number) {
-  const safeWidth = Math.max(areaWidth, 260);
+  const safeWidth = Math.max(areaWidth, 300);
   const sortedNotes = [...notes].sort((left, right) => {
     if (left.y !== right.y) {
       return left.y - right.y;
@@ -313,11 +316,12 @@ function buildMobileNoteLayout(notes: PositionedComment[], areaWidth: number) {
 
   const positionedNotes = sortedNotes.map((note, index) => {
     const size = getNoteSize(note.content, true);
-    const maxLeft = Math.max(NOTE_SAFE_PADDING, safeWidth - size.width - NOTE_SAFE_PADDING);
+    const edgePadding = MOBILE_NOTE_SAFE_PADDING + MOBILE_ROTATION_MARGIN;
+    const maxLeft = Math.max(edgePadding, safeWidth - size.width - edgePadding);
     const centerLeft = (safeWidth - size.width) / 2;
     const jitter = index % 3 === 0 ? -14 : index % 3 === 1 ? 10 : -4;
-    const leftPx = clamp(centerLeft + jitter, NOTE_SAFE_PADDING, maxLeft);
-    let topY = currentY;
+    const leftPx = clamp(centerLeft + jitter, edgePadding, maxLeft);
+    let topY = Math.max(currentY, edgePadding);
 
     if (previousRect) {
       const maxOverlapHeight = Math.floor(
@@ -1092,7 +1096,7 @@ function MobileNotesSection({
   const noteCount = countLabel;
 
   return (
-    <section className="isolate overflow-hidden rounded-[1.7rem] border border-[#E8DCC9] bg-[linear-gradient(180deg,rgba(255,252,246,0.96),rgba(249,242,233,0.96))] p-4 shadow-[0_18px_40px_-32px_rgba(56,39,24,0.45)]">
+    <section className="isolate overflow-hidden rounded-[1.45rem] border border-[#E8DCC9] bg-[linear-gradient(180deg,rgba(255,252,246,0.96),rgba(249,242,233,0.96))] p-2.5 shadow-[0_18px_40px_-32px_rgba(56,39,24,0.45)]">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
           <h3 className="font-youyou text-2xl text-[#2F241A]">{title}</h3>
@@ -1107,7 +1111,7 @@ function MobileNotesSection({
         </span>
       </div>
 
-      <div className="relative overflow-hidden rounded-[1.4rem] border border-[#E9DDCC] bg-[#FFFDF8]/85 px-2 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+      <div className="relative overflow-hidden rounded-[1.05rem] border border-[#E9DDCC] bg-[#FFFDF8]/85 px-1 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
         <div ref={areaRef} className="relative w-full overflow-hidden" style={{ height: `${areaHeight}px` }}>
           {children}
         </div>
@@ -1233,6 +1237,7 @@ function NotesLayer({
             resolvedHeight,
             compact
           );
+          const displayRotate = compact ? clamp(note.rotate, -3, 3) : note.rotate;
           const isOwner = currentUserId === note.userId;
           const isBusy = busyIds.has(note.id);
           const zIndex = liftOrder > 0 ? notes.length + liftOrder : notes.length - index;
@@ -1254,20 +1259,20 @@ function NotesLayer({
                 x: note.entryOffsetX,
                 y: note.entryOffsetY,
                 scale: 0.3,
-                rotate: note.rotate * 0.25,
+                rotate: displayRotate * 0.25,
               }}
               animate={{
                 opacity: 1,
                 x: 0,
                 y: isFocused ? -8 : 0,
                 scale: isHot ? 1.1 : 1,
-                rotate: note.rotate,
+                rotate: displayRotate,
               }}
               exit={{
                 opacity: 0,
                 y: 20,
                 scale: 0.85,
-                rotate: note.rotate + 8,
+                rotate: displayRotate + 8,
               }}
               transition={{
                 type: "spring",
