@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -227,9 +228,12 @@ export default function SettingsPage() {
             <div className="relative group">
               {/* 头像显示 */}
               {avatarPreview || avatarUrl ? (
-                <img
+                <Image
                   src={avatarPreview || avatarUrl || ''}
                   alt={displayName}
+                  width={96}
+                  height={96}
+                  unoptimized
                   className="w-24 h-24 rounded-full object-cover border-2 border-[#E8E4DF]"
                 />
               ) : (

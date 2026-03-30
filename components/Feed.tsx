@@ -2,18 +2,21 @@ import Link from "next/link";
 import type { SVGProps } from "react";
 import { Mail, Newspaper } from "lucide-react";
 import type { Issue } from "@/lib/articles";
+import type { DebateTopicStatus } from "@/lib/debate-schedule";
 import HomeDebateEntry from "@/components/debate/HomeDebateEntry";
 import IssueBadge from "@/components/IssueBadge";
 import { getIssueDisplayTitle } from "@/lib/issue-display";
 
 interface FeedProps {
   issue?: Issue | null;
-  debateEntry?: {
+  debateEntries?: Array<{
     href: string;
     issueLabel?: string | null;
     title: string;
     description?: string | null;
-  } | null;
+    startsAt: string | null;
+    status: DebateTopicStatus;
+  }>;
 }
 
 function WeChatIcon(props: SVGProps<SVGSVGElement>) {
@@ -30,7 +33,7 @@ function WeChatIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-export default function Feed({ issue = null, debateEntry = null }: FeedProps) {
+export default function Feed({ issue = null, debateEntries = [] }: FeedProps) {
   return (
     <section className="bg-white/0 px-6 pb-4 pt-6 md:px-12 md:pb-8 md:pt-10 lg:px-24 lg:pb-10 lg:pt-12">
       <div className="mx-auto max-w-7xl">
@@ -56,7 +59,7 @@ export default function Feed({ issue = null, debateEntry = null }: FeedProps) {
                   href={`/issues/${issue.slug}`}
                   className="inline-flex items-center rounded-full border border-[#D7CCC8] px-6 py-2.5 transition-all duration-300 hover:-translate-y-[2px] hover:border-[#A1887F] hover:bg-[#A1887F] hover:text-white hover:shadow-[0_8px_20px_rgba(161,136,127,0.3)]"
                 >
-                  查看本期
+                  {"\u67e5\u770b\u672c\u671f"}
                 </Link>
               ) : null}
 
@@ -64,13 +67,13 @@ export default function Feed({ issue = null, debateEntry = null }: FeedProps) {
                 href="/issues"
                 className="inline-flex items-center rounded-full border border-[#D7CCC8] px-6 py-2.5 transition-all duration-300 hover:-translate-y-[2px] hover:border-[#A1887F] hover:bg-[#A1887F] hover:text-white hover:shadow-[0_8px_20px_rgba(161,136,127,0.3)]"
               >
-                往期归档
+                {"\u5f80\u671f\u5f52\u6863"}
               </Link>
             </div>
           </div>
         </div>
 
-        {debateEntry ? (
+        {debateEntries.length > 0 ? (
           <div className="pt-8 opacity-0 animate-[fadeInUp_0.8s_ease-out_0.55s_forwards] md:pt-10">
             <div className="mb-5 flex items-center gap-3">
               <span className="h-2 w-2 rounded-full bg-[#CFAF9D] shadow-[0_0_10px_rgba(207,175,157,0.45)]" />
@@ -78,19 +81,23 @@ export default function Feed({ issue = null, debateEntry = null }: FeedProps) {
                 Recent Events
               </p>
               <span className="text-xs tracking-[0.18em] text-[#B49B8C]">
-                近期活动
+                {"\u8fd1\u671f\u6d3b\u52a8"}
               </span>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="w-full max-w-[32rem]">
-                <HomeDebateEntry
-                  href={debateEntry.href}
-                  issueLabel={debateEntry.issueLabel}
-                  title={debateEntry.title}
-                  description={debateEntry.description}
-                />
-              </div>
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {debateEntries.map((debateEntry) => (
+                <div key={debateEntry.href} className="w-full">
+                  <HomeDebateEntry
+                    href={debateEntry.href}
+                    issueLabel={debateEntry.issueLabel}
+                    title={debateEntry.title}
+                    description={debateEntry.description}
+                    startsAt={debateEntry.startsAt}
+                    status={debateEntry.status}
+                  />
+                </div>
+              ))}
             </div>
           </div>
         ) : null}
@@ -109,7 +116,7 @@ export default function Feed({ issue = null, debateEntry = null }: FeedProps) {
                   Connect
                 </p>
                 <p className="mt-4 max-w-sm text-sm leading-7 text-[#786456] md:text-[0.95rem]">
-                  愿意来信、来聊、来找到我们，就从这里开始。
+                  {"\u613f\u610f\u6765\u4fe1\u3001\u6765\u804a\u3001\u6765\u627e\u5230\u6211\u4eec\uff0c\u5c31\u4ece\u8fd9\u91cc\u5f00\u59cb\u3002"}
                 </p>
               </div>
 
@@ -140,7 +147,7 @@ export default function Feed({ issue = null, debateEntry = null }: FeedProps) {
                     <Newspaper className="h-4 w-4" strokeWidth={1.7} />
                   </div>
                   <p className="mt-4 text-[1.05rem] leading-7 text-[#3A2C24]">
-                    星火-好看
+                    {"\u661f\u706b-\u597d\u770b"}
                   </p>
                 </div>
               </div>

@@ -10,6 +10,7 @@ import {
   toggleDebateCommentLike,
   toggleDebateCommentDislike,
 } from "@/app/actions/debates";
+import { getDebateTopicTiming, selectDefaultDebateTopicId } from "@/lib/debate-schedule";
 import type { DebateComment, DebateSide, DebateTopic } from "@/lib/debates";
 
 type Stance = DebateSide;
@@ -24,8 +25,8 @@ interface DebateWallProps {
   initialTopics: DebateTopic[];
   isLoggedIn: boolean;
   issueSlug: string;
-
- 
+  initialTopicId?: string | null;
+  initialNowMs?: number;
 }
 
 interface AreaMetrics {
@@ -376,14 +377,13 @@ function updateCommentInTopics(
 }
 
 export default function DebateWall({
-
   currentUserId,
   initialTopics,
   isLoggedIn,
   issueSlug,
-
+  initialTopicId = null,
+  initialNowMs = Date.now(),
 }: DebateWallProps) {
-
 function formatTime(seconds: number) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -393,31 +393,11 @@ function formatTime(seconds: number) {
     .toString()
     .padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
-const START_TIME = new Date("2026-03-30T12:00:00").getTime();
-const END_TIME = new Date("2026-03-30T12:10:00").getTime();
-
-useEffect(() => {
-  const timer = setInterval(() => {
-    const now = Date.now();
-
-    if (now < START_TIME) {
-      setDebateStatus("not_started");
-      setLocalTimeLeft(Math.floor((START_TIME - now) / 1000));
-    } else if (now < END_TIME) {
-      setDebateStatus("ongoing");
-      setLocalTimeLeft(Math.floor((END_TIME - now) / 1000));
-    } else {
-      setDebateStatus("ended");
-      setLocalTimeLeft(0);
-      clearInterval(timer);
-    }
-  }, 1000);
-
-  return () => clearInterval(timer);
-}, []);
 
   const [topics, setTopics] = useState(initialTopics);
-  const [activeTopicId, setActiveTopicId] = useState(initialTopics[0]?.id ?? null);
+  const [activeTopicId, setActiveTopicId] = useState(
+    initialTopicId ?? selectDefaultDebateTopicId(initialTopics, null, initialNowMs)
+  );
   const [isModalOpen, setModalOpen] = useState(false);
   const [stance, setStance] = useState<Stance>("pro");
   const [sortMode, setSortMode] = useState<SortMode>("latest");
@@ -430,17 +410,12 @@ useEffect(() => {
   const [statusTone, setStatusTone] = useState<StatusTone>("info");
   const [isPending, startTransition] = useTransition();
   const [liftedOrder, setLiftedOrder] = useState<Record<string, number>>({});
+  const [nowMs, setNowMs] = useState(initialNowMs);
 
   const proRef = useRef<HTMLDivElement | null>(null);
   const conRef = useRef<HTMLDivElement | null>(null);
   const sourceButtonRef = useRef<HTMLButtonElement | null>(null);
   const liftCounterRef = useRef(0);
-
-  const [debateStatus, setDebateStatus] = useState<
-  "not_started" | "ongoing" | "ended"
-  >("not_started");
-
-  const [localTimeLeft, setLocalTimeLeft] = useState(0);
   const [metrics, setMetrics] = useState<Record<Stance, AreaMetrics>>({
     pro: { width: 0, height: 0 },
     con: { width: 0, height: 0 },
@@ -456,9 +431,27 @@ useEffect(() => {
 
   useEffect(() => {
     if (!topics.some((topic) => topic.id === activeTopicId)) {
-      setActiveTopicId(topics[0]?.id ?? null);
+      setActiveTopicId(selectDefaultDebateTopicId(topics, initialTopicId, nowMs));
     }
-  }, [activeTopicId, topics]);
+  }, [activeTopicId, initialTopicId, nowMs, topics]);
+
+  useEffect(() => {
+    if (initialTopicId && topics.some((topic) => topic.id === initialTopicId)) {
+      setActiveTopicId(initialTopicId);
+    }
+  }, [initialTopicId, topics]);
+
+  useEffect(() => {
+    setNowMs(initialNowMs);
+  }, [initialNowMs]);
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timerId);
+  }, []);
 
   useEffect(() => {
     const refreshMetrics = () => {
@@ -500,6 +493,19 @@ useEffect(() => {
     () => topics.find((topic) => topic.id === activeTopicId) ?? topics[0] ?? null,
     [activeTopicId, topics]
   );
+
+  const activeTopicTiming = useMemo(() => {
+    if (!activeTopic?.startsAt) {
+      return null;
+    }
+
+    return getDebateTopicTiming(activeTopic.startsAt, nowMs);
+  }, [activeTopic?.startsAt, nowMs]);
+
+  const debateStatus = activeTopicTiming?.status ?? "not_started";
+  const localTimeLeft = activeTopicTiming
+    ? Math.max(0, Math.ceil(activeTopicTiming.timeLeftMs / 1000))
+    : 0;
 
   useEffect(() => {
     setVisibleCounts({
@@ -612,6 +618,10 @@ useEffect(() => {
   };
 
   const handleOpenComposer = () => {
+  if (activeTopic && !activeTopicTiming) {
+    showStatus("当前辩题尚未配置开始时间。", "error");
+    return;
+  }
   if (!activeTopic) {
     showStatus("当前还没有可参与的辩题。", "error");
     return;
@@ -636,6 +646,10 @@ useEffect(() => {
 };
 
   const handleCreateComment = () => {
+  if (activeTopic && !activeTopicTiming) {
+    showStatus("当前辩题尚未配置开始时间。", "error");
+    return;
+  }
   if (!activeTopic) {
     showStatus("当前还没有可参与的辩题。", "error");
     return;
@@ -1090,7 +1104,7 @@ useEffect(() => {
         </section>
       </div>
 
-      <div className="fixed inset-x-0 bottom-4 z-[9900] mx-auto flex w-[calc(100%-1.5rem)] max-w-fit flex-col items-center gap-2 md:bottom-7"></div>
+      <div className="fixed inset-x-0 bottom-4 z-[9900] mx-auto flex w-[calc(100%-1.5rem)] max-w-fit flex-col items-center gap-2 md:bottom-7">
         <AnimatePresence>
           {statusMessage ? (
             <motion.div
@@ -1127,6 +1141,8 @@ useEffect(() => {
     </button>
   </div>
 )}
+
+      </div>
 
       <AnimatePresence>
         {isModalOpen ? (

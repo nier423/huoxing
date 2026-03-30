@@ -23,6 +23,7 @@ export interface DebateTopic {
   title: string;
   description: string | null;
   sortOrder: number;
+  startsAt: string | null;
   createdAt: string;
   comments: DebateComment[];
 }
@@ -46,6 +47,7 @@ function mapTopic(row: RawRow): Omit<DebateTopic, "comments"> {
     title: toText(row.title),
     description: toText(row.description) || null,
     sortOrder: Number(row.sort_order ?? 0),
+    startsAt: toText(row.starts_at) || null,
     createdAt: toText(row.created_at) || new Date(0).toISOString(),
   };
 }
@@ -79,7 +81,7 @@ async function getDebateTopicSummariesInternal(
   const adminClient = createAdminClient();
   const { data: topicsData, error: topicsError } = await adminClient
     .from("debate_topics")
-    .select("id, issue_id, title, description, sort_order, created_at")
+    .select("id, issue_id, title, description, sort_order, starts_at, created_at")
     .eq("issue_id", issueId)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });

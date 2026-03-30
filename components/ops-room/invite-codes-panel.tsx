@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -55,7 +55,7 @@ export default function InviteCodesPanel() {
   const [messageTone, setMessageTone] = useState<MessageTone>('success')
   const [filter, setFilter] = useState<Filter>('all')
 
-  const handleGuardFailure = (error?: string, fallbackMessage?: string) => {
+  const handleGuardFailure = useCallback((error?: string, fallbackMessage?: string) => {
     if (error === 'NOT_AUTHENTICATED') {
       router.replace(OPS_ROOM_LOGIN_PATH)
       return true
@@ -67,9 +67,9 @@ export default function InviteCodesPanel() {
     }
 
     return false
-  }
+  }, [router])
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     setMessage('')
 
@@ -91,11 +91,11 @@ export default function InviteCodesPanel() {
     }
 
     setLoading(false)
-  }
+  }, [handleGuardFailure])
 
   useEffect(() => {
     void loadData()
-  }, [])
+  }, [loadData])
 
   const copyCode = async (code: string, id: string) => {
     try {

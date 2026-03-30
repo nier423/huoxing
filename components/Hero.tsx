@@ -33,7 +33,7 @@ export default function Hero({ coverImage }: HeroProps) {
               星星之火，可以燎原
             </p>
             <p className="font-sans text-[10px] sm:text-xs md:text-sm text-[#9E9E9E] mt-3 md:mt-4 tracking-widest font-light uppercase">
-              Spark | Women's Writing Community
+              Spark | Women&apos;s Writing Community
             </p>
           </div>
         </div>

@@ -5,6 +5,7 @@ import DebateWall from "@/components/debate/DebateWall";
 import IssueBadge from "@/components/IssueBadge";
 import Navbar from "@/components/Navbar";
 import { getIssueBySlug } from "@/lib/articles";
+import { selectDefaultDebateTopicId } from "@/lib/debate-schedule";
 import { getDebateTopicsByIssueId } from "@/lib/debates";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,9 +15,12 @@ interface PageProps {
   params: {
     slug: string;
   };
+  searchParams?: {
+    topic?: string | string[];
+  };
 }
 
-export default async function IssueDebatePage({ params }: PageProps) {
+export default async function IssueDebatePage({ params, searchParams }: PageProps) {
   const slug = decodeURIComponent(params.slug);
   const issue = await getIssueBySlug(slug);
 
@@ -29,6 +33,9 @@ export default async function IssueDebatePage({ params }: PageProps) {
     data: { user },
   } = await supabase.auth.getUser();
   const topics = await getDebateTopicsByIssueId(issue.id, user?.id ?? null);
+  const requestedTopicId = typeof searchParams?.topic === "string" ? searchParams.topic : null;
+  const initialNowMs = Date.now();
+  const initialTopicId = selectDefaultDebateTopicId(topics, requestedTopicId, initialNowMs);
 
   return (
     <main className="min-h-screen bg-[#F7F5F0]">
@@ -40,7 +47,7 @@ export default async function IssueDebatePage({ params }: PageProps) {
           className="group mb-10 inline-flex items-center text-[#9E9E9E] transition-colors hover:text-[#A1887F]"
         >
           <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
-          <span className="text-sm font-serif tracking-widest">返回本期</span>
+          <span className="text-sm font-serif tracking-widest">{"\u8fd4\u56de\u672c\u671f"}</span>
         </Link>
 
         <header className="rounded-[2rem] border border-[#E8E4DF] bg-white/80 px-6 py-8 md:px-8 md:py-10">
@@ -51,11 +58,13 @@ export default async function IssueDebatePage({ params }: PageProps) {
           </div>
 
           <h1 className="mt-5 font-youyou text-4xl text-[#2C2C2C] md:text-5xl">
-            本期辩论
+            {"\u672c\u671f\u8fa9\u8bba"}
           </h1>
 
           <p className="mt-4 max-w-3xl font-serif text-base leading-loose text-[#6C665F] md:text-lg">
-            游戏规则：可以粘贴/删除自己的纸条。可以点赞她人纸条，不能点赞自己纸条。需要注册登录后吵架。
+            {
+              "\u6e38\u620f\u89c4\u5219\uff1a\u53ef\u4ee5\u7c98\u8d34/\u5220\u9664\u81ea\u5df1\u7684\u7eb8\u6761\u3002\u53ef\u4ee5\u70b9\u8d5e\u4ed6\u4eba\u7eb8\u6761\uff0c\u4e0d\u80fd\u70b9\u8d5e\u81ea\u5df1\u7eb8\u6761\u3002\u9700\u8981\u6ce8\u518c\u767b\u5f55\u540e\u5409\u67b6\u3002"
+            }
           </p>
         </header>
 
@@ -65,6 +74,8 @@ export default async function IssueDebatePage({ params }: PageProps) {
             initialTopics={topics}
             isLoggedIn={Boolean(user)}
             issueSlug={issue.slug}
+            initialTopicId={initialTopicId}
+            initialNowMs={initialNowMs}
           />
         </div>
       </div>

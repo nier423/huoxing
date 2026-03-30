@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getDebateTopicTiming } from "@/lib/debate-schedule";
 import { createClient } from "@/lib/supabase/server";
 import type { DebateComment, DebateSide } from "@/lib/debates";
 
@@ -129,6 +130,38 @@ export async function createDebateComment(
 
   if (!user) {
     return { success: false, message: "请先登录后再留言。" };
+  }
+
+  const adminClient = createAdminClient();
+  const { data: topic, error: topicError } = await adminClient
+    .from("debate_topics")
+    .select("id, starts_at")
+    .eq("id", input.topicId)
+    .maybeSingle();
+
+  if (topicError) {
+    console.error("[createDebateComment] Failed to load topic schedule:", topicError);
+    return { success: false, message: "当前辩题暂时无法校验开放时间，请稍后重试。" };
+  }
+
+  if (!topic) {
+    return { success: false, message: "当前辩题不存在，暂时无法留言。" };
+  }
+
+  const startsAt = toText(topic.starts_at) || null;
+
+  if (!startsAt) {
+    return { success: false, message: "当前辩题尚未配置开始时间。" };
+  }
+
+  const topicTiming = getDebateTopicTiming(startsAt, Date.now());
+
+  if (topicTiming.status === "not_started") {
+    return { success: false, message: "辩论尚未开始，暂时不能发言。" };
+  }
+
+  if (topicTiming.status === "ended") {
+    return { success: false, message: "辩论已结束，无法继续发言。" };
   }
 
   const { data, error } = await supabase

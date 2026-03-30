@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import Image from 'next/image'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, FilePlus2, Loader2, RefreshCw } from 'lucide-react'
@@ -146,7 +147,7 @@ export default function ArticlePublisherPanel() {
     }
   }, [title, slug])
 
-  const handleGuardFailure = (error?: string, fallbackMessage?: string) => {
+  const handleGuardFailure = useCallback((error?: string, fallbackMessage?: string) => {
     if (error === 'NOT_AUTHENTICATED') {
       router.replace(OPS_ROOM_ARTICLE_LOGIN_PATH)
       return true
@@ -158,9 +159,9 @@ export default function ArticlePublisherPanel() {
     }
 
     return false
-  }
+  }, [router])
 
-  const loadPanelData = async () => {
+  const loadPanelData = useCallback(async () => {
     setLoading(true)
 
     const issuesResult = await getAdminIssues()
@@ -222,11 +223,11 @@ export default function ArticlePublisherPanel() {
         : null
     })
     setLoading(false)
-  }
+  }, [filterCategory, handleGuardFailure])
 
   useEffect(() => {
     void loadPanelData()
-  }, [filterCategory])
+  }, [loadPanelData])
 
   const resetForm = () => {
     setTitle('')
@@ -922,6 +923,7 @@ export default function ArticlePublisherPanel() {
                           封面图片
                         </label>
                         {issue.coverImage && (
+                          /* eslint-disable-next-line @next/next/no-img-element */
                           <img
                             src={issue.coverImage}
                             alt="封面预览"
