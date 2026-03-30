@@ -24,6 +24,8 @@ interface DebateWallProps {
   initialTopics: DebateTopic[];
   isLoggedIn: boolean;
   issueSlug: string;
+
+ 
 }
 
 interface AreaMetrics {
@@ -374,11 +376,46 @@ function updateCommentInTopics(
 }
 
 export default function DebateWall({
+
   currentUserId,
   initialTopics,
   isLoggedIn,
   issueSlug,
+
 }: DebateWallProps) {
+
+function formatTime(seconds: number) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+
+  return `${h.toString().padStart(2, "0")}:${m
+    .toString()
+    .padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+const START_TIME = new Date("2026-03-30T12:00:00").getTime();
+const END_TIME = new Date("2026-03-30T12:10:00").getTime();
+
+useEffect(() => {
+  const timer = setInterval(() => {
+    const now = Date.now();
+
+    if (now < START_TIME) {
+      setDebateStatus("not_started");
+      setLocalTimeLeft(Math.floor((START_TIME - now) / 1000));
+    } else if (now < END_TIME) {
+      setDebateStatus("ongoing");
+      setLocalTimeLeft(Math.floor((END_TIME - now) / 1000));
+    } else {
+      setDebateStatus("ended");
+      setLocalTimeLeft(0);
+      clearInterval(timer);
+    }
+  }, 1000);
+
+  return () => clearInterval(timer);
+}, []);
+
   const [topics, setTopics] = useState(initialTopics);
   const [activeTopicId, setActiveTopicId] = useState(initialTopics[0]?.id ?? null);
   const [isModalOpen, setModalOpen] = useState(false);
@@ -399,6 +436,11 @@ export default function DebateWall({
   const sourceButtonRef = useRef<HTMLButtonElement | null>(null);
   const liftCounterRef = useRef(0);
 
+  const [debateStatus, setDebateStatus] = useState<
+  "not_started" | "ongoing" | "ended"
+  >("not_started");
+
+  const [localTimeLeft, setLocalTimeLeft] = useState(0);
   const [metrics, setMetrics] = useState<Record<Stance, AreaMetrics>>({
     pro: { width: 0, height: 0 },
     con: { width: 0, height: 0 },
@@ -570,66 +612,90 @@ export default function DebateWall({
   };
 
   const handleOpenComposer = () => {
-    if (!activeTopic) {
-      showStatus("当前还没有可参与的辩题。", "error");
-      return;
-    }
+  if (!activeTopic) {
+    showStatus("当前还没有可参与的辩题。", "error");
+    return;
+  }
 
-    if (!isLoggedIn) {
-      showStatus("请先登录后再发言。", "error");
-      return;
-    }
+  if (!isLoggedIn) {
+    showStatus("请先登录后再发言。", "error");
+    return;
+  }
 
-    setModalOpen(true);
-  };
+  if (debateStatus === "not_started") {
+    showStatus("辩论尚未开始，暂时不能发言。", "info");
+    return;
+  }
+
+  if (debateStatus === "ended") {
+    showStatus("辩论已结束，无法继续发言。", "info");
+    return;
+  }
+
+  setModalOpen(true);
+};
 
   const handleCreateComment = () => {
-    if (!activeTopic) {
-      showStatus("当前还没有可参与的辩题。", "error");
-      return;
-    }
+  if (!activeTopic) {
+    showStatus("当前还没有可参与的辩题。", "error");
+    return;
+  }
 
-    if (!isLoggedIn) {
-      showStatus("请先登录后再发言。", "error");
-      return;
-    }
+  if (!isLoggedIn) {
+    showStatus("请先登录后再发言。", "error");
+    return;
+  }
 
-    const content = draft.trim();
-    if (!content) {
-      showStatus("先写下你的观点，再把纸条贴上去。", "error");
-      return;
-    }
+  // ✅ 阶段限制（新增）
+  if (debateStatus === "not_started") {
+    showStatus("辩论尚未开始，不能提交发言。", "info");
+    return;
+  }
 
-    startTransition(() => {
-      void (async () => {
-        const result = await createDebateComment({
-          content,
-          issueSlug,
-          side: stance,
-          topicId: activeTopic.id,
-        });
+  if (debateStatus === "ended") {
+    showStatus("辩论已结束，无法提交发言。", "info");
+    return;
+  }
 
-        if (!result.success || !result.comment) {
-          showStatus(result.message, "error");
-          return;
-        }
+  const content = draft.trim();
+  if (!content) {
+    showStatus("先写下你的观点，再把纸条贴上去。", "error");
+    return;
+  }
 
-        setTopics((currentTopics) =>
-          currentTopics.map((topic) =>
-            topic.id === activeTopic.id
-              ? { ...topic, comments: [...topic.comments, result.comment!] }
-              : topic
-          )
-        );
-        setSortMode("latest");
-        setDraft("");
-        setModalOpen(false);
-        setActiveId(result.comment.id);
-        bringToFront(result.comment.id, { toggleActions: false });
-        showStatus(result.message, "success");
-      })();
-    });
-  };
+  startTransition(() => {
+    void (async () => {
+      const result = await createDebateComment({
+        content,
+        issueSlug,
+        side: stance,
+        topicId: activeTopic.id,
+      });
+
+      if (!result.success || !result.comment) {
+        showStatus(result.message, "error");
+        return;
+      }
+
+      setTopics((currentTopics) =>
+        currentTopics.map((topic) =>
+          topic.id === activeTopic.id
+            ? { ...topic, comments: [...topic.comments, result.comment!] }
+            : topic
+        )
+      );
+
+      setSortMode("latest");
+      setDraft("");
+      setModalOpen(false);
+      setActiveId(result.comment.id);
+      bringToFront(result.comment.id, { toggleActions: false });
+
+      showStatus(result.message, "success");
+    })();
+  });
+};
+
 
   const handleDeleteComment = (commentId: string) => {
     if (!currentUserId) {
@@ -761,6 +827,7 @@ export default function DebateWall({
       </section>
     );
   }
+  
 
   return (
     <main
@@ -773,11 +840,7 @@ export default function DebateWall({
           <h1 className="mt-2 font-youyou text-3xl leading-tight md:text-5xl">
             {activeTopic.title}
           </h1>
-          {activeTopic.description ? (
-            <p className="mx-auto mt-4 max-w-3xl text-sm leading-7 text-[#7E6756] md:text-base">
-              {activeTopic.description}
-            </p>
-          ) : null}
+          
 
           {topics.length > 1 ? (
             <div className="mt-6 flex flex-wrap justify-center gap-2">
@@ -818,11 +881,32 @@ export default function DebateWall({
                 </button>
               ))}
             </div>
-            <p className="text-xs leading-6 text-[#8A715B] md:text-sm">
-              {sortMode === "latest"
-                ? "按发布时间从新到旧展示纸条。"
-                : "按点赞数从高到低展示纸条，同赞时按发布时间从新到旧。"}
-            </p>
+            
+<p className="mx-auto mt-4 max-w-3xl text-center">
+  {debateStatus !== "ended" ? (
+    <>
+      <span className="text-3xl md:text-4xl tracking-[0.2em] text-[#9A8069] font-youyou">
+        距辩论
+        <span className="text-red-500 mx-2 font-bold">
+          {debateStatus === "not_started" ? "开始" : "结束"}
+        </span>
+        还有：
+      </span>
+
+      <span
+        className={`ml-4 font-youyou text-5xl md:text-6xl font-extrabold tracking-widest ${
+          localTimeLeft < 60 ? "text-red-500" : "text-[#E58E3A]"
+        }`}
+      >
+        {formatTime(localTimeLeft)}
+      </span>
+    </>
+  ) : (
+    <span className="text-2xl text-[#9A8069]">
+      本场辩论已结束
+    </span>
+  )}
+</p>
           </div>
         </header>
 
@@ -830,20 +914,62 @@ export default function DebateWall({
           className="isolate relative mt-8 overflow-hidden rounded-[2rem] border border-[#EFE4D3] bg-[linear-gradient(180deg,rgba(255,252,246,0.96),rgba(250,244,235,0.96))] px-3 py-6 shadow-[0_24px_60px_-48px_rgba(56,39,24,0.45)] md:mt-10 md:px-6 md:py-8"
           style={{ minHeight: isMobile ? undefined : `${boardHeight + 80}px` }}
         >
+        
           <div className="pointer-events-none absolute left-0 right-0 top-5 hidden grid-cols-2 text-center md:grid">
-            <div>
-              <h3 className="font-youyou text-xl text-[#2F241A] md:text-3xl">正方</h3>
+                <div>
+               <h3 className="font-youyou text-xl text-[#2F241A] md:text-3xl">正方</h3>
               <p className="mt-2 text-xs tracking-[0.2em] text-[#9A8069]">
-                支持这个观点的纸条
-              </p>
-            </div>
-            <div>
-              <h3 className="font-youyou text-xl text-[#2F241A] md:text-3xl">反方</h3>
-              <p className="mt-2 text-xs tracking-[0.2em] text-[#9A8069]">
-                反对或质疑这个观点的纸条
-              </p>
-            </div>
+               支持这个观点的纸条
+               </p>
           </div>
+
+          <div>
+             <h3 className="font-youyou text-xl text-[#2F241A] md:text-3xl">反方</h3>
+               <p className="mt-2 text-xs tracking-[0.2em] text-[#9A8069]">
+          反对或质疑这个观点的纸条
+               </p>
+          </div>
+      </div>
+<div className="pointer-events-none absolute bottom-6 left-1/2 top-20 hidden w-px -translate-x-1/2 bg-[#D7D3CC] md:block" />
+
+
+{debateStatus === "not_started" && (
+<motion.div
+  className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  transition={{ duration: 1 }}
+>
+  <div
+    className="relative w-[92%] h-[72%] max-w-[1100px]
+               rounded-3xl border border-[#D6BFA4]/40
+               bg-gradient-to-b from-[#FFF8EE]/90 to-[#FDF6EC]/80
+               shadow-[0_40px_120px_-40px_rgba(80,60,30,0.35)]
+               flex flex-col items-center justify-center text-center
+               px-10 py-12"
+    style={{
+      backdropFilter: "blur(10px)",
+    }}
+  >
+
+    <div className="font-youyou text-6xl md:text-8xl tracking-[0.15em] text-[#3F352C]">
+      等你来辩
+    </div>
+
+
+    <div className="mt-6 text-lg md:text-2xl tracking-[0.25em] text-[#9A8069] font-light">
+      立场未定 · 辩席虚位
+    </div>
+
+
+    <div className="mt-10 h-px w-24 bg-[#D6BFA4]/60" />
+
+    <div className="mt-4 text-sm tracking-[0.3em] text-[#B8A999]">
+      等你落子
+    </div>
+  </div>
+</motion.div>
+)}
           <div className="pointer-events-none absolute bottom-6 left-1/2 top-20 hidden w-px -translate-x-1/2 bg-[#D7D3CC] md:block" />
 
           <div className="relative mt-20 hidden md:block" style={{ height: `${boardHeight}px` }}>
@@ -964,7 +1090,7 @@ export default function DebateWall({
         </section>
       </div>
 
-      <div className="fixed inset-x-0 bottom-4 z-[9900] mx-auto flex w-[calc(100%-1.5rem)] max-w-fit flex-col items-center gap-2 md:bottom-7">
+      <div className="fixed inset-x-0 bottom-4 z-[9900] mx-auto flex w-[calc(100%-1.5rem)] max-w-fit flex-col items-center gap-2 md:bottom-7"></div>
         <AnimatePresence>
           {statusMessage ? (
             <motion.div
@@ -985,21 +1111,22 @@ export default function DebateWall({
           ) : null}
         </AnimatePresence>
 
-        <div className="flex items-center justify-center rounded-full border border-[#9FB8D5] bg-[#83A9D0]/95 px-2 py-2 shadow-[0_16px_36px_-20px_rgba(0,0,0,0.5)] backdrop-blur md:px-3">
-          <button
-            ref={sourceButtonRef}
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              handleOpenComposer();
-            }}
-            className="w-full rounded-full px-6 py-2 text-lg font-youyou text-white transition hover:bg-[#6E96C0] disabled:cursor-not-allowed disabled:opacity-70 md:w-auto md:px-8 md:text-xl"
-            disabled={isPending}
-          >
-            {isLoggedIn ? "我要发言" : "登录后发言"}
-          </button>
-        </div>
-      </div>
+        {debateStatus === "ongoing" && (
+  <div className="flex items-center justify-center rounded-full border border-[#9FB8D5] bg-[#83A9D0]/95 px-2 py-2 shadow-[0_16px_36px_-20px_rgba(0,0,0,0.5)] backdrop-blur md:px-3">
+    <button
+      ref={sourceButtonRef}
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        handleOpenComposer();
+      }}
+      className="w-full rounded-full px-6 py-2 text-lg font-youyou text-white transition hover:bg-[#6E96C0] disabled:cursor-not-allowed disabled:opacity-70 md:w-auto md:px-8 md:text-xl"
+      disabled={isPending}
+    >
+      {isLoggedIn ? "我要发言" : "登录后发言"}
+    </button>
+  </div>
+)}
 
       <AnimatePresence>
         {isModalOpen ? (
