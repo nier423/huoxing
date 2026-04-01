@@ -4,10 +4,11 @@ import Image from 'next/image'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, FilePlus2, Loader2, Plus, RefreshCw } from 'lucide-react'
+import { ArrowLeft, FilePlus2, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import {
   createAdminArticle,
   createAdminIssue,
+  deleteAdminIssue,
   deleteAdminArticle,
   getAdminArticles,
   getAdminIssues,
@@ -125,6 +126,10 @@ function getAutoCurrentIssue(issues: AdminIssueSummary[]) {
   })[0]
 }
 
+function getLatestCreatedIssue(issues: AdminIssueSummary[]) {
+  return [...issues].sort((left, right) => right.sortOrder - left.sortOrder)[0] ?? null
+}
+
 export default function ArticlePublisherPanel() {
   const router = useRouter()
   const [articles, setArticles] = useState<AdminArticleSummary[]>([])
@@ -152,6 +157,8 @@ export default function ArticlePublisherPanel() {
   const [newIssueTitleManual, setNewIssueTitleManual] = useState(false)
   const [newIssueSlugManual, setNewIssueSlugManual] = useState(false)
   const [creatingIssue, setCreatingIssue] = useState(false)
+  const [confirmDeleteIssueId, setConfirmDeleteIssueId] = useState('')
+  const [deletingIssueId, setDeletingIssueId] = useState('')
 
   useEffect(() => {
     if (!slug) {
@@ -189,6 +196,9 @@ export default function ArticlePublisherPanel() {
 
     setIssues(nextIssues)
     setCurrentIssue(nextCurrentIssue)
+    setConfirmDeleteIssueId((currentIssueId) =>
+      nextIssues.some((issue) => issue.id === currentIssueId) ? currentIssueId : ''
+    )
     setIssueId((currentIssueId) => {
       if (currentIssueId && nextIssues.some((issue) => issue.id === currentIssueId)) {
         return currentIssueId
@@ -427,7 +437,39 @@ export default function ArticlePublisherPanel() {
     setDeletingArticleId('')
   }
 
+  const handleDeleteIssueRequest = (nextIssueId: string) => {
+    setConfirmDeleteIssueId((currentIssueId) => (currentIssueId === nextIssueId ? '' : nextIssueId))
+  }
+
+  const handleDeleteIssue = async (issue: AdminIssueSummary) => {
+    setDeletingIssueId(issue.id)
+    setMessage('')
+    setIsError(false)
+
+    const result = await deleteAdminIssue(issue.id)
+
+    if (!result.success) {
+      handleGuardFailure(result.error, result.message)
+      setDeletingIssueId('')
+      return
+    }
+
+    const deletedArticleCount = result.data?.deletedArticleCount ?? 0
+    const deletedDebateTopicCount = result.data?.deletedDebateTopicCount ?? 0
+    const extraNotes = [
+      deletedArticleCount > 0 ? `同时删除了 ${deletedArticleCount} 篇文章` : '',
+      deletedDebateTopicCount > 0 ? `同时删除了 ${deletedDebateTopicCount} 个辩题` : '',
+    ].filter(Boolean)
+
+    setMessage(extraNotes.length > 0 ? `${result.message} ${extraNotes.join('，')}。` : result.message)
+    setIsError(false)
+    setConfirmDeleteIssueId('')
+    await loadPanelData()
+    setDeletingIssueId('')
+  }
+
   const selectedIssue = issues.find((issue) => issue.id === issueId) ?? null
+  const latestCreatedIssue = getLatestCreatedIssue(issues)
 
   return (
     <div className="min-h-screen bg-[#F7F5F0]">
@@ -971,8 +1013,15 @@ export default function ArticlePublisherPanel() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {issues.map((issue) => {
-                const isPublished = issue.publishedAt && new Date(issue.publishedAt) <= new Date()
-                const isScheduled = issue.publishedAt && new Date(issue.publishedAt) > new Date()
+                const isPublished = Boolean(
+                  issue.publishedAt && new Date(issue.publishedAt) <= new Date()
+                )
+                const isScheduled = Boolean(
+                  issue.publishedAt && new Date(issue.publishedAt) > new Date()
+                )
+                const canDeleteIssue = latestCreatedIssue?.id === issue.id && !isPublished
+                const isDeleteIssueConfirming = confirmDeleteIssueId === issue.id
+                const isDeletingIssue = deletingIssueId === issue.id
 
                 return (
                   <div
@@ -1073,6 +1122,44 @@ export default function ArticlePublisherPanel() {
                           }}
                         />
                       </div>
+
+                      {canDeleteIssue ? (
+                        <div className="mt-1 border-t border-[#E8E4DF] pt-3">
+                          <div className="mb-2 flex items-center gap-2 text-xs text-[#8D8D8D]">
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>仅最新一期且尚未上线时可删除。</span>
+                          </div>
+
+                          {isDeleteIssueConfirming ? (
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void handleDeleteIssue(issue)}
+                                disabled={isDeletingIssue}
+                                className="rounded-full bg-red-600 px-4 py-1.5 text-xs text-white transition-colors hover:bg-red-700 disabled:bg-red-300"
+                              >
+                                {isDeletingIssue ? '删除中...' : '确认删除本期'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteIssueId('')}
+                                disabled={isDeletingIssue}
+                                className="rounded-full border border-[#D7CCC8] px-4 py-1.5 text-xs text-[#7C746D] transition-colors hover:border-[#A1887F] hover:text-[#A1887F] disabled:opacity-50"
+                              >
+                                取消
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteIssueRequest(issue.id)}
+                              className="rounded-full border border-red-200 px-4 py-1.5 text-xs text-red-600 transition-colors hover:bg-red-50"
+                            >
+                              删除本期
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 )

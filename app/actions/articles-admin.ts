@@ -54,6 +54,7 @@ interface GetAdminArticlesInput {
 
 type RawArticleRow = Record<string, unknown>
 type RawIssueRow = Record<string, unknown>
+type RawDebateRow = Record<string, unknown>
 
 const ISSUE_SELECT = `
   id,
@@ -100,6 +101,15 @@ function getCategoryAliases(category: string) {
   }
 
   return [category]
+}
+
+function isIssueAlreadyPublished(publishedAt: string | null) {
+  if (!publishedAt) {
+    return false
+  }
+
+  const publishedMs = new Date(publishedAt).getTime()
+  return !Number.isNaN(publishedMs) && publishedMs <= Date.now()
 }
 
 async function requireArticleAdmin(): Promise<
@@ -392,6 +402,227 @@ export async function createAdminIssue(
     return {
       success: false,
       message: '创建期刊失败。',
+      error: getErrorMessage(error),
+    }
+  }
+}
+
+export async function deleteAdminIssue(
+  issueId: string
+): Promise<ActionResult<{ deletedArticleCount: number; deletedDebateTopicCount: number }>> {
+  try {
+    const adminAccess = await requireArticleAdmin()
+    if (!adminAccess.ok) {
+      return adminAccess.result
+    }
+
+    if (!issueId) {
+      return {
+        success: false,
+        message: '缺少刊号 ID。',
+        error: 'MISSING_ISSUE_ID',
+      }
+    }
+
+    const adminClient = createAdminClient()
+    const [issueResult, latestIssueResult] = await Promise.all([
+      adminClient
+        .from('issues')
+        .select('id, slug, label, title, published_at, sort_order, created_at')
+        .eq('id', issueId)
+        .maybeSingle(),
+      adminClient
+        .from('issues')
+        .select('id, slug, label, title, published_at, sort_order, created_at')
+        .order('sort_order', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
+
+    if (issueResult.error) {
+      return {
+        success: false,
+        message: '读取期刊信息失败。',
+        error: issueResult.error.message,
+      }
+    }
+
+    if (!issueResult.data) {
+      return {
+        success: false,
+        message: '未找到要删除的期刊。',
+        error: 'ISSUE_NOT_FOUND',
+      }
+    }
+
+    if (latestIssueResult.error) {
+      return {
+        success: false,
+        message: '读取最新期刊失败。',
+        error: latestIssueResult.error.message,
+      }
+    }
+
+    const issue = issueResult.data as RawIssueRow
+    const latestIssue = (latestIssueResult.data as RawIssueRow | null) ?? null
+
+    if (!latestIssue || String(latestIssue.id ?? '') !== issueId) {
+      return {
+        success: false,
+        message: '只能删除最新创建的一期刊物。',
+        error: 'ONLY_LATEST_ISSUE_CAN_BE_DELETED',
+      }
+    }
+
+    const publishedAt = toText(issue.published_at) || null
+    if (isIssueAlreadyPublished(publishedAt)) {
+      return {
+        success: false,
+        message: '已经发布上线的期刊不能删除。',
+        error: 'ISSUE_ALREADY_PUBLISHED',
+      }
+    }
+
+    const [{ data: articleRows, error: articleFetchError }, { data: debateTopicRows, error: debateFetchError }] =
+      await Promise.all([
+        adminClient.from('articles').select('id').eq('issue_id', issueId),
+        adminClient.from('debate_topics').select('id').eq('issue_id', issueId),
+      ])
+
+    if (articleFetchError) {
+      return {
+        success: false,
+        message: '读取该期文章失败。',
+        error: articleFetchError.message,
+      }
+    }
+
+    if (debateFetchError) {
+      return {
+        success: false,
+        message: '读取该期辩题失败。',
+        error: debateFetchError.message,
+      }
+    }
+
+    const articleIds = ((articleRows as RawArticleRow[] | null) ?? [])
+      .map((row) => String(row.id ?? ''))
+      .filter(Boolean)
+    const debateTopicIds = ((debateTopicRows as RawDebateRow[] | null) ?? [])
+      .map((row) => String(row.id ?? ''))
+      .filter(Boolean)
+
+    if (debateTopicIds.length > 0) {
+      const { data: debateCommentRows, error: debateCommentFetchError } = await adminClient
+        .from('debate_comments')
+        .select('id')
+        .in('topic_id', debateTopicIds)
+
+      if (debateCommentFetchError) {
+        return {
+          success: false,
+          message: '读取辩题评论失败。',
+          error: debateCommentFetchError.message,
+        }
+      }
+
+      const debateCommentIds = ((debateCommentRows as RawDebateRow[] | null) ?? [])
+        .map((row) => String(row.id ?? ''))
+        .filter(Boolean)
+
+      if (debateCommentIds.length > 0) {
+        const [deleteLikesResult, deleteDislikesResult, deleteCommentsResult] = await Promise.all([
+          adminClient.from('debate_comment_likes').delete().in('comment_id', debateCommentIds),
+          adminClient.from('debate_comment_dislikes').delete().in('comment_id', debateCommentIds),
+          adminClient.from('debate_comments').delete().in('id', debateCommentIds),
+        ])
+
+        const debateChildDeleteError =
+          deleteLikesResult.error ?? deleteDislikesResult.error ?? deleteCommentsResult.error
+
+        if (debateChildDeleteError) {
+          return {
+            success: false,
+            message: '删除辩题互动数据失败。',
+            error: debateChildDeleteError.message,
+          }
+        }
+      }
+
+      const { error: deleteTopicsError } = await adminClient
+        .from('debate_topics')
+        .delete()
+        .in('id', debateTopicIds)
+
+      if (deleteTopicsError) {
+        return {
+          success: false,
+          message: '删除辩题失败。',
+          error: deleteTopicsError.message,
+        }
+      }
+    }
+
+    if (articleIds.length > 0) {
+      const { error: deleteEchoesError } = await adminClient
+        .from('echoes')
+        .delete()
+        .in('article_id', articleIds)
+
+      if (deleteEchoesError) {
+        return {
+          success: false,
+          message: '删除文章回响失败。',
+          error: deleteEchoesError.message,
+        }
+      }
+
+      const { error: deleteArticlesError } = await adminClient
+        .from('articles')
+        .delete()
+        .eq('issue_id', issueId)
+
+      if (deleteArticlesError) {
+        return {
+          success: false,
+          message: '删除该期文章失败。',
+          error: deleteArticlesError.message,
+        }
+      }
+    }
+
+    const { error: deleteIssueError } = await adminClient
+      .from('issues')
+      .delete()
+      .eq('id', issueId)
+
+    if (deleteIssueError) {
+      return {
+        success: false,
+        message: '删除期刊失败。',
+        error: deleteIssueError.message,
+      }
+    }
+
+    revalidatePath('/')
+    revalidatePath('/issues')
+    revalidatePath('/ops-room')
+    revalidatePath('/ops-room/articles')
+
+    return {
+      success: true,
+      message: `期刊 "${toText(issue.label)} · ${toText(issue.title)}" 已删除。`,
+      data: {
+        deletedArticleCount: articleIds.length,
+        deletedDebateTopicCount: debateTopicIds.length,
+      },
+    }
+  } catch (error) {
+    console.error('[deleteAdminIssue] Unexpected error:', error)
+    return {
+      success: false,
+      message: '删除期刊失败。',
       error: getErrorMessage(error),
     }
   }
