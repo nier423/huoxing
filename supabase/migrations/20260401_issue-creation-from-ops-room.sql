@@ -1,0 +1,14 @@
+-- Migration: Allow issue creation from the ops-room admin panel
+-- Note: The application uses createAdminClient() (Service Role Key) for all
+-- issue management operations. Service Role Key bypasses RLS by design,
+-- so no additional INSERT policy is needed for the admin flow.
+--
+-- This file serves as documentation that the `issues` table is now managed
+-- via the ops-room UI in addition to direct Supabase Dashboard access.
+--
+-- The createAdminIssue server action inserts rows with:
+--   label, title, slug, sort_order (auto-calculated), is_current (false),
+--   published_at (null)
+--
+-- No schema changes required — the existing `issues` table already has
+-- all the needed columns.

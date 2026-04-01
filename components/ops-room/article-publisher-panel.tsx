@@ -4,9 +4,10 @@ import Image from 'next/image'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, FilePlus2, Loader2, RefreshCw } from 'lucide-react'
+import { ArrowLeft, FilePlus2, Loader2, Plus, RefreshCw } from 'lucide-react'
 import {
   createAdminArticle,
+  createAdminIssue,
   deleteAdminArticle,
   getAdminArticles,
   getAdminIssues,
@@ -140,6 +141,12 @@ export default function ArticlePublisherPanel() {
   const [content, setContent] = useState('')
   const [publishNow, setPublishNow] = useState(true)
   const [selectedArticleTime, setSelectedArticleTime] = useState<SelectedArticleTime | null>(null)
+  const [newIssueLabel, setNewIssueLabel] = useState('')
+  const [newIssueTitle, setNewIssueTitle] = useState('')
+  const [newIssueSlug, setNewIssueSlug] = useState('')
+  const [newIssueTitleManual, setNewIssueTitleManual] = useState(false)
+  const [newIssueSlugManual, setNewIssueSlugManual] = useState(false)
+  const [creatingIssue, setCreatingIssue] = useState(false)
 
   useEffect(() => {
     if (!slug) {
@@ -842,10 +849,120 @@ export default function ArticlePublisherPanel() {
             </p>
           </div>
 
+          {/* Create New Issue Form */}
+          <div className="mb-6 rounded-2xl border border-dashed border-[#D7CCC8] bg-[#FDFCFB] p-5">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="rounded-xl bg-[#F7F5F0] p-2.5">
+                <Plus className="h-4 w-4 text-[#A1887F]" />
+              </div>
+              <div>
+                <h3 className="font-youyou text-lg text-[#3A3A3A]">新增期数</h3>
+                <p className="text-xs text-[#8D8D8D]">创建新一期刊物，创建后可在下方设置上线时间和封面。</p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-youyou text-[#5D5D5D]">标签 (label)</label>
+                <input
+                  type="text"
+                  value={newIssueLabel}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setNewIssueLabel(val)
+                    // Auto-derive title and slug from label like "v3"
+                    const match = val.trim().match(/^v(\d+)$/i)
+                    if (match && !newIssueTitleManual) {
+                      const DIGITS = ['零','一','二','三','四','五','六','七','八','九','十']
+                      const num = Number(match[1])
+                      const cn = num <= 10 ? DIGITS[num] : String(num)
+                      setNewIssueTitle(`第${cn}看`)
+                    }
+                    if (!newIssueSlugManual) {
+                      setNewIssueSlug(val.trim().toLowerCase().replace(/[^a-z0-9-]/g, ''))
+                    }
+                  }}
+                  placeholder="v3"
+                  className="w-full rounded-xl border border-[#E8E4DF] bg-white px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-youyou text-[#5D5D5D]">标题 (title)</label>
+                <input
+                  type="text"
+                  value={newIssueTitle}
+                  onChange={(e) => {
+                    setNewIssueTitle(e.target.value)
+                    setNewIssueTitleManual(true)
+                  }}
+                  placeholder="第三看"
+                  className="w-full rounded-xl border border-[#E8E4DF] bg-white px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-youyou text-[#5D5D5D]">链接 (slug)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newIssueSlug}
+                    onChange={(e) => {
+                      setNewIssueSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+                      setNewIssueSlugManual(true)
+                    }}
+                    placeholder="v3"
+                    className="w-full rounded-xl border border-[#E8E4DF] bg-white px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
+                  />
+                  <button
+                    type="button"
+                    disabled={creatingIssue || !newIssueLabel.trim()}
+                    onClick={async () => {
+                      setCreatingIssue(true)
+                      setMessage('')
+                      setIsError(false)
+                      const result = await createAdminIssue({
+                        label: newIssueLabel,
+                        title: newIssueTitle,
+                        slug: newIssueSlug,
+                      })
+                      if (!result.success) {
+                        handleGuardFailure(result.error, result.message)
+                        setCreatingIssue(false)
+                        return
+                      }
+                      setMessage(result.message)
+                      setIsError(false)
+                      setNewIssueLabel('')
+                      setNewIssueTitle('')
+                      setNewIssueSlug('')
+                      setNewIssueTitleManual(false)
+                      setNewIssueSlugManual(false)
+                      await loadPanelData()
+                      setCreatingIssue(false)
+                    }}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#3A3A3A] px-4 py-2.5 text-sm text-white transition-colors hover:bg-[#2A2A2A] disabled:bg-[#8D8D8D]"
+                  >
+                    {creatingIssue ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Plus className="h-3.5 w-3.5" />
+                    )}
+                    <span className="font-youyou">{creatingIssue ? '创建中...' : '创建'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {newIssueLabel.trim() && newIssueTitle.trim() && newIssueSlug.trim() && (
+              <p className="mt-3 text-xs text-[#8D8D8D]">
+                预览：{newIssueLabel} · {newIssueTitle}　→　/issues/{newIssueSlug}
+              </p>
+            )}
+          </div>
+
           {loading ? (
             <div className="py-10 text-center text-sm text-[#8D8D8D]">正在读取期刊列表...</div>
           ) : issues.length === 0 ? (
-            <div className="py-10 text-center text-sm text-[#8D8D8D]">还没有期刊记录。</div>
+            <div className="py-10 text-center text-sm text-[#8D8D8D]">还没有期刊记录，请使用上方表单创建第一期。</div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {issues.map((issue) => {

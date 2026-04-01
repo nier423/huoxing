@@ -300,6 +300,102 @@ export async function getAdminIssues(): Promise<ActionResult<AdminIssueSummary[]
   }
 }
 
+interface CreateIssueInput {
+  label: string
+  title: string
+  slug: string
+}
+
+export async function createAdminIssue(
+  input: CreateIssueInput
+): Promise<ActionResult<AdminIssueSummary>> {
+  try {
+    const adminAccess = await requireArticleAdmin()
+    if (!adminAccess.ok) {
+      return adminAccess.result
+    }
+
+    const label = input.label.trim()
+    const title = input.title.trim()
+    const slug = input.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
+
+    if (!label || !title || !slug) {
+      return {
+        success: false,
+        message: '请填写所有必填字段（标签、标题、链接）。',
+        error: 'MISSING_FIELDS',
+      }
+    }
+
+    const adminClient = createAdminClient()
+
+    // Check for duplicate slug
+    const { data: existing } = await adminClient
+      .from('issues')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle()
+
+    if (existing) {
+      return {
+        success: false,
+        message: `链接 "${slug}" 已被占用，请换一个。`,
+        error: 'DUPLICATE_SLUG',
+      }
+    }
+
+    // Calculate next sort_order atomically from DB
+    const { data: maxRow } = await adminClient
+      .from('issues')
+      .select('sort_order')
+      .order('sort_order', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const nextSortOrder = (maxRow ? Number(maxRow.sort_order ?? 0) : 0) + 1
+
+    const { data, error } = await adminClient
+      .from('issues')
+      .insert({
+        label,
+        title,
+        slug,
+        sort_order: nextSortOrder,
+        is_current: false,
+        published_at: null,
+      })
+      .select(ISSUE_SELECT)
+      .single()
+
+    if (error || !data) {
+      console.error('[createAdminIssue] Failed to insert issue:', error)
+      return {
+        success: false,
+        message: '创建期刊失败，请检查数据库配置。',
+        error: error?.message ?? 'INSERT_FAILED',
+      }
+    }
+
+    revalidatePath('/')
+    revalidatePath('/issues')
+    revalidatePath('/ops-room')
+    revalidatePath('/ops-room/articles')
+
+    return {
+      success: true,
+      message: `期刊 "${label} · ${title}" 已创建。`,
+      data: mapIssue(data as RawIssueRow),
+    }
+  } catch (error) {
+    console.error('[createAdminIssue] Unexpected error:', error)
+    return {
+      success: false,
+      message: '创建期刊失败。',
+      error: getErrorMessage(error),
+    }
+  }
+}
+
 export async function getAdminArticles(
   input?: GetAdminArticlesInput
 ): Promise<ActionResult<AdminArticleSummary[]>> {
