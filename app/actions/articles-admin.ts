@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getAdminAccess } from '@/lib/admin-access'
 import { CATEGORY_PATHS, normalizeCategory } from '@/lib/articles'
+import { normalizeIssueLabel } from '@/lib/issue-display'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 interface ActionResult<T = null> {
@@ -315,7 +316,7 @@ export async function createAdminIssue(
       return adminAccess.result
     }
 
-    const label = input.label.trim()
+    const label = normalizeIssueLabel(input.label)
     const title = input.title.trim()
     const slug = input.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
 

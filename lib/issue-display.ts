@@ -6,6 +6,17 @@ interface IssueDisplayInput {
 
 const CHINESE_DIGITS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
 
+export function normalizeIssueLabel(label?: string | null): string {
+  const trimmed = label?.trim() ?? "";
+  const match = trimmed.match(/^v(\d+)$/i);
+
+  if (!match) {
+    return trimmed;
+  }
+
+  return `V${match[1]}`;
+}
+
 function toChineseNumber(value: number): string {
   if (value < 10) {
     return CHINESE_DIGITS[value] ?? String(value);
@@ -30,11 +41,13 @@ function toChineseNumber(value: number): string {
 }
 
 export function getIssueNumberFromLabel(label?: string | null): number | null {
-  if (!label) {
+  const normalizedLabel = normalizeIssueLabel(label);
+
+  if (!normalizedLabel) {
     return null;
   }
 
-  const match = label.trim().match(/^v(\d+)$/i);
+  const match = normalizedLabel.match(/^V(\d+)$/);
 
   if (!match) {
     return null;

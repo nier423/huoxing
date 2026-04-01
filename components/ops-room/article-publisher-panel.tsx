@@ -17,6 +17,7 @@ import {
   updateArticlePublishedAt,
 } from '@/app/actions/articles-admin'
 import { getIssueDisplayTitle } from '@/lib/issue-display'
+import { normalizeIssueLabel } from '@/lib/issue-display'
 
 interface AdminIssueSummary {
   id: string
@@ -88,6 +89,10 @@ function normalizeSlug(input: string) {
     .replace(/[^a-z0-9\u4e00-\u9fff-]/g, '')
     .replace(/-{2,}/g, '-')
     .replace(/^-+|-+$/g, '')
+}
+
+function normalizeIssueLabelInput(input: string) {
+  return normalizeIssueLabel(input)
 }
 
 function getDefaultIssueId(issues: AdminIssueSummary[]) {
@@ -868,9 +873,9 @@ export default function ArticlePublisherPanel() {
                   type="text"
                   value={newIssueLabel}
                   onChange={(e) => {
-                    const val = e.target.value
+                    const val = normalizeIssueLabelInput(e.target.value)
                     setNewIssueLabel(val)
-                    // Auto-derive title and slug from label like "v3"
+                    // Auto-derive title and slug from label like "V3"
                     const match = val.trim().match(/^v(\d+)$/i)
                     if (match && !newIssueTitleManual) {
                       const DIGITS = ['零','一','二','三','四','五','六','七','八','九','十']
@@ -882,7 +887,7 @@ export default function ArticlePublisherPanel() {
                       setNewIssueSlug(val.trim().toLowerCase().replace(/[^a-z0-9-]/g, ''))
                     }
                   }}
-                  placeholder="v3"
+                  placeholder="V3"
                   className="w-full rounded-xl border border-[#E8E4DF] bg-white px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
                 />
               </div>
