@@ -3,7 +3,7 @@ import type { SVGProps } from "react";
 import { Mail, Newspaper } from "lucide-react";
 import type { Issue } from "@/lib/articles";
 import type { DebateTopicStatus } from "@/lib/debate-schedule";
-import HomeDebateEntry from "@/components/debate/HomeDebateEntry";
+import HomeDebateEntryRail from "@/components/debate/HomeDebateEntryRail";
 import IssueBadge from "@/components/IssueBadge";
 import { getIssueDisplayTitle } from "@/lib/issue-display";
 
@@ -85,20 +85,7 @@ export default function Feed({ issue = null, debateEntries = [] }: FeedProps) {
               </span>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {debateEntries.map((debateEntry) => (
-                <div key={debateEntry.href} className="w-full">
-                  <HomeDebateEntry
-                    href={debateEntry.href}
-                    issueLabel={debateEntry.issueLabel}
-                    title={debateEntry.title}
-                    description={debateEntry.description}
-                    startsAt={debateEntry.startsAt}
-                    status={debateEntry.status}
-                  />
-                </div>
-              ))}
-            </div>
+            <HomeDebateEntryRail entries={debateEntries} />
           </div>
         ) : null}
 
