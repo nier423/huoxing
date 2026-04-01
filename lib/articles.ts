@@ -47,6 +47,10 @@ type RawArticleRow = Record<string, unknown>;
 type RawIssueRow = Record<string, unknown>;
 type RawEchoRow = Record<string, unknown>;
 type DatabaseClient = any;
+type QueryResult<T> = {
+  data: T | null;
+  error: unknown;
+};
 
 const ISSUE_SELECT = `
   id,
@@ -60,9 +64,9 @@ const ISSUE_SELECT = `
   created_at
 `;
 
-const ARTICLE_SELECT = `
+const PUBLIC_ARTICLE_SELECT = `
   *,
-  issue:issues!articles_issue_id_fkey(
+  issue:issues!inner(
     ${ISSUE_SELECT}
   )
 `;
@@ -79,43 +83,19 @@ function getSupabaseClient() {
   return createClient(supabaseUrl, supabaseAnonKey);
 }
 
-function getAdminSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
-    return null;
-  }
-
-  return createClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-}
-
-async function runWithAdminFallback<T>(
-  queryFactory: (db: DatabaseClient) => Promise<{ data: T | null; error: unknown }>
+async function runPublicQuery<T>(
+  queryFactory: (db: DatabaseClient) => Promise<QueryResult<T>>
 ) {
   const supabase = getSupabaseClient();
-  const adminSupabase = getAdminSupabaseClient();
-  const db = adminSupabase ?? supabase;
 
-  if (!db) {
+  if (!supabase) {
     return {
       data: null as T | null,
       error: new Error("Supabase client is not configured"),
     };
   }
 
-  const result = await queryFactory(db);
-
-  if ((!result.data || result.error) && supabase && adminSupabase && db !== supabase) {
-    return queryFactory(supabase);
-  }
-
-  return result;
+  return queryFactory(supabase);
 }
 
 function toText(value: unknown): string {
@@ -178,14 +158,16 @@ function mapIssue(row: RawIssueRow | null | undefined): Issue | null {
   };
 }
 
-/**
- * Returns true if the issue's published_at date is in the past (or null/empty).
- * Issues with a future published_at are considered "scheduled" and hidden from the front-end.
- */
-function isIssuePublished(issue: Issue | null): issue is Issue {
-  if (!issue) return false;
-  if (!issue.publishedAt) return true; // No date = always visible
-  return new Date(issue.publishedAt) <= new Date();
+function getPublishCutoffIso() {
+  return new Date().toISOString();
+}
+
+function applyPublicIssueVisibility(query: DatabaseClient, nowIso: string) {
+  return query.not("published_at", "is", null).lte("published_at", nowIso);
+}
+
+function applyPublicIssueRelationVisibility(query: DatabaseClient, nowIso: string) {
+  return query.not("issue.published_at", "is", null).lte("issue.published_at", nowIso);
 }
 
 function mapArticle(row: RawArticleRow): Article {
@@ -226,7 +208,7 @@ async function populateEchoCounts(articles: Article[]): Promise<Article[]> {
     return articles;
   }
 
-  const { data, error } = await runWithAdminFallback<RawEchoRow[]>((db) =>
+  const { data, error } = await runPublicQuery<RawEchoRow[]>((db) =>
     db.from("echoes").select("article_id").in("article_id", articleIds)
   );
 
@@ -284,10 +266,9 @@ export function groupArticlesByCategory(articles: Article[]): [string, Article[]
 }
 
 export async function getAllIssues(): Promise<Issue[]> {
-  const { data, error } = await runWithAdminFallback<RawIssueRow[]>((db) =>
-    db
-      .from("issues")
-      .select(ISSUE_SELECT)
+  const nowIso = getPublishCutoffIso();
+  const { data, error } = await runPublicQuery<RawIssueRow[]>((db) =>
+    applyPublicIssueVisibility(db.from("issues").select(ISSUE_SELECT), nowIso)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true })
   );
@@ -297,16 +278,7 @@ export async function getAllIssues(): Promise<Issue[]> {
     return [];
   }
 
-  return data
-    .map((row) => mapIssue(row))
-    .filter((issue): issue is Issue => isIssuePublished(issue))
-    .sort((left, right) => {
-      if (left.isCurrent !== right.isCurrent) {
-        return left.isCurrent ? -1 : 1;
-      }
-
-      return left.sortOrder - right.sortOrder;
-    });
+  return data.map((row) => mapIssue(row)).filter((issue): issue is Issue => Boolean(issue));
 }
 
 export async function getArchivedIssues() {
@@ -315,19 +287,28 @@ export async function getArchivedIssues() {
 }
 
 export async function getCurrentIssue(): Promise<Issue | null> {
-  // Automatically determine the "current" issue: the one with the highest
-  // sort_order whose published_at is in the past. No manual is_current needed.
-  const issues = await getAllIssues(); // already filtered by isIssuePublished
-  if (issues.length === 0) return null;
+  const nowIso = getPublishCutoffIso();
+  const { data, error } = await runPublicQuery<RawIssueRow>((db) =>
+    applyPublicIssueVisibility(db.from("issues").select(ISSUE_SELECT), nowIso)
+      .order("sort_order", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+  );
 
-  // Sort by sort_order descending — the newest published issue wins
-  const sorted = [...issues].sort((a, b) => b.sortOrder - a.sortOrder);
-  return sorted[0];
+  if (error) {
+    console.error("[getCurrentIssue] 获取当前刊失败:", error);
+    return null;
+  }
+
+  return mapIssue(data);
 }
 
 export async function getIssueBySlug(slug: string): Promise<Issue | null> {
-  const { data, error } = await runWithAdminFallback<RawIssueRow>((db) =>
-    db.from("issues").select(ISSUE_SELECT).eq("slug", slug).maybeSingle()
+  const nowIso = getPublishCutoffIso();
+  const { data, error } = await runPublicQuery<RawIssueRow>((db) =>
+    applyPublicIssueVisibility(db.from("issues").select(ISSUE_SELECT).eq("slug", slug), nowIso)
+      .maybeSingle()
   );
 
   if (error) {
@@ -335,10 +316,7 @@ export async function getIssueBySlug(slug: string): Promise<Issue | null> {
     return null;
   }
 
-  const issue = mapIssue(data);
-  // Gate: don't expose issues that haven't reached their publish date
-  if (!isIssuePublished(issue)) return null;
-  return issue;
+  return mapIssue(data);
 }
 
 function resolveIssueIdOption(options?: { issueId?: string | null }) {
@@ -355,15 +333,19 @@ export async function getLatestArticles(
 ): Promise<Article[]> {
   const explicitIssueId = resolveIssueIdOption(options);
   const issueId = explicitIssueId === undefined ? (await getCurrentIssue())?.id ?? null : explicitIssueId;
+  const nowIso = getPublishCutoffIso();
 
-  const { data, error } = await runWithAdminFallback<RawArticleRow[]>((db) => {
-    let query = db
+  const { data, error } = await runPublicQuery<RawArticleRow[]>((db) => {
+    let query = applyPublicIssueRelationVisibility(
+      db
       .from("articles")
-      .select(ARTICLE_SELECT)
+      .select(PUBLIC_ARTICLE_SELECT)
       .eq("is_published", true)
       .order("published_at", { ascending: false })
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .limit(limit),
+      nowIso
+    );
 
     if (issueId) {
       query = query.eq("issue_id", issueId);
@@ -387,20 +369,24 @@ export async function getArticlesByCategory(
 ): Promise<Article[]> {
   const explicitIssueId = resolveIssueIdOption(options);
   const issueId = explicitIssueId === undefined ? (await getCurrentIssue())?.id ?? null : explicitIssueId;
+  const nowIso = getPublishCutoffIso();
   const aliases = getCategoryAliases(normalizeCategory(category));
   const orFilter = aliases
     .map((value) => `category.eq.${value.replaceAll(",", "\\,")}`)
     .join(",");
 
-  const { data, error } = await runWithAdminFallback<RawArticleRow[]>((db) => {
-    let query = db
+  const { data, error } = await runPublicQuery<RawArticleRow[]>((db) => {
+    let query = applyPublicIssueRelationVisibility(
+      db
       .from("articles")
-      .select(ARTICLE_SELECT)
+      .select(PUBLIC_ARTICLE_SELECT)
       .eq("is_published", true)
       .or(orFilter)
       .order("published_at", { ascending: false })
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .limit(limit),
+      nowIso
+    );
 
     if (issueId) {
       query = query.eq("issue_id", issueId);
@@ -422,15 +408,19 @@ export async function getArticlesByIssue(issueId: string, limit = 100): Promise<
     return [];
   }
 
-  const { data, error } = await runWithAdminFallback<RawArticleRow[]>((db) =>
-    db
+  const nowIso = getPublishCutoffIso();
+  const { data, error } = await runPublicQuery<RawArticleRow[]>((db) =>
+    applyPublicIssueRelationVisibility(
+      db
       .from("articles")
-      .select(ARTICLE_SELECT)
+      .select(PUBLIC_ARTICLE_SELECT)
       .eq("is_published", true)
       .eq("issue_id", issueId)
       .order("published_at", { ascending: false })
       .order("created_at", { ascending: false })
-      .limit(limit)
+      .limit(limit),
+      nowIso
+    )
   );
 
   if (error || !data) {
@@ -442,13 +432,17 @@ export async function getArticlesByIssue(issueId: string, limit = 100): Promise<
 }
 
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
-  const { data, error } = await runWithAdminFallback<RawArticleRow>((db) =>
-    db
+  const nowIso = getPublishCutoffIso();
+  const { data, error } = await runPublicQuery<RawArticleRow>((db) =>
+    applyPublicIssueRelationVisibility(
+      db
       .from("articles")
-      .select(ARTICLE_SELECT)
+      .select(PUBLIC_ARTICLE_SELECT)
       .eq("is_published", true)
       .eq("slug", slug)
-      .maybeSingle()
+      .maybeSingle(),
+      nowIso
+    )
   );
 
   if (error) {
