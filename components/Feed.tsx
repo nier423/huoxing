@@ -15,6 +15,7 @@ interface FeedProps {
     title: string;
     description?: string | null;
     startsAt: string | null;
+    endsAt: string | null;
     status: DebateTopicStatus;
   }>;
 }

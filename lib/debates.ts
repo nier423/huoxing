@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export type DebateSide = "pro" | "con";
 
@@ -24,6 +24,7 @@ export interface DebateTopic {
   description: string | null;
   sortOrder: number;
   startsAt: string | null;
+  endsAt: string | null;
   createdAt: string;
   comments: DebateComment[];
 }
@@ -48,6 +49,7 @@ function mapTopic(row: RawRow): Omit<DebateTopic, "comments"> {
     description: toText(row.description) || null,
     sortOrder: Number(row.sort_order ?? 0),
     startsAt: toText(row.starts_at) || null,
+    endsAt: toText(row.ends_at) || null,
     createdAt: toText(row.created_at) || new Date(0).toISOString(),
   };
 }
@@ -78,11 +80,28 @@ function mapComment(
 async function getDebateTopicSummariesInternal(
   issueId: string
 ): Promise<DebateTopicSummary[]> {
-  const adminClient = createAdminClient();
-  const { data: topicsData, error: topicsError } = await adminClient
+  const supabase = createClient();
+  const nowIso = new Date().toISOString();
+  const { data: topicsData, error: topicsError } = await supabase
     .from("debate_topics")
-    .select("id, issue_id, title, description, sort_order, starts_at, created_at")
+    .select(
+      `
+        id,
+        issue_id,
+        title,
+        description,
+        sort_order,
+        starts_at,
+        ends_at,
+        created_at,
+        issue:issues!inner(
+          published_at
+        )
+      `
+    )
     .eq("issue_id", issueId)
+    .not("issue.published_at", "is", null)
+    .lte("issue.published_at", nowIso)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 
@@ -117,9 +136,9 @@ export async function getDebateTopicsByIssueId(
     return [];
   }
 
-  const adminClient = createAdminClient();
+  const supabase = createClient();
   const topicIds = topics.map((topic) => topic.id);
-  const { data: commentsData, error: commentsError } = await adminClient
+  const { data: commentsData, error: commentsError } = await supabase
     .from("debate_comments")
     .select("*")
     .in("topic_id", topicIds)
@@ -136,8 +155,11 @@ export async function getDebateTopicsByIssueId(
 
   if (commentIds.length > 0) {
     const [likesResult, dislikesResult] = await Promise.all([
-      adminClient.from("debate_comment_likes").select("comment_id").in("comment_id", commentIds),
-      adminClient.from("debate_comment_dislikes").select("comment_id").in("comment_id", commentIds)
+      supabase.from("debate_comment_likes").select("comment_id").in("comment_id", commentIds),
+      supabase
+        .from("debate_comment_dislikes")
+        .select("comment_id")
+        .in("comment_id", commentIds),
     ]);
 
     if (likesResult.error) {
@@ -145,16 +167,23 @@ export async function getDebateTopicsByIssueId(
     } else {
       for (const row of (likesResult.data as RawRow[] | null) ?? []) {
         const commentId = String(row.comment_id ?? "");
-        if (commentId) likeCounts.set(commentId, (likeCounts.get(commentId) ?? 0) + 1);
+        if (commentId) {
+          likeCounts.set(commentId, (likeCounts.get(commentId) ?? 0) + 1);
+        }
       }
     }
 
     if (dislikesResult.error) {
-      console.error("[getDebateTopicsByIssueId] Failed to load dislike counts:", dislikesResult.error);
+      console.error(
+        "[getDebateTopicsByIssueId] Failed to load dislike counts:",
+        dislikesResult.error
+      );
     } else {
       for (const row of (dislikesResult.data as RawRow[] | null) ?? []) {
         const commentId = String(row.comment_id ?? "");
-        if (commentId) dislikeCounts.set(commentId, (dislikeCounts.get(commentId) ?? 0) + 1);
+        if (commentId) {
+          dislikeCounts.set(commentId, (dislikeCounts.get(commentId) ?? 0) + 1);
+        }
       }
     }
   }
@@ -164,25 +193,43 @@ export async function getDebateTopicsByIssueId(
 
   if (viewerUserId && commentIds.length > 0) {
     const [viewerLikesResult, viewerDislikesResult] = await Promise.all([
-      adminClient.from("debate_comment_likes").select("comment_id").eq("user_id", viewerUserId).in("comment_id", commentIds),
-      adminClient.from("debate_comment_dislikes").select("comment_id").eq("user_id", viewerUserId).in("comment_id", commentIds)
+      supabase
+        .from("debate_comment_likes")
+        .select("comment_id")
+        .eq("user_id", viewerUserId)
+        .in("comment_id", commentIds),
+      supabase
+        .from("debate_comment_dislikes")
+        .select("comment_id")
+        .eq("user_id", viewerUserId)
+        .in("comment_id", commentIds),
     ]);
 
     if (viewerLikesResult.error) {
-      console.error("[getDebateTopicsByIssueId] Failed to load viewer like state:", viewerLikesResult.error);
+      console.error(
+        "[getDebateTopicsByIssueId] Failed to load viewer like state:",
+        viewerLikesResult.error
+      );
     } else {
       for (const row of (viewerLikesResult.data as RawRow[] | null) ?? []) {
         const commentId = String(row.comment_id ?? "");
-        if (commentId) viewerLikedCommentIds.add(commentId);
+        if (commentId) {
+          viewerLikedCommentIds.add(commentId);
+        }
       }
     }
 
     if (viewerDislikesResult.error) {
-      console.error("[getDebateTopicsByIssueId] Failed to load viewer dislike state:", viewerDislikesResult.error);
+      console.error(
+        "[getDebateTopicsByIssueId] Failed to load viewer dislike state:",
+        viewerDislikesResult.error
+      );
     } else {
       for (const row of (viewerDislikesResult.data as RawRow[] | null) ?? []) {
         const commentId = String(row.comment_id ?? "");
-        if (commentId) viewerDislikedCommentIds.add(commentId);
+        if (commentId) {
+          viewerDislikedCommentIds.add(commentId);
+        }
       }
     }
   }
@@ -191,8 +238,8 @@ export async function getDebateTopicsByIssueId(
 
   for (const row of commentRows) {
     const comment = mapComment(
-      row, 
-      likeCounts, 
+      row,
+      likeCounts,
       viewerLikedCommentIds,
       dislikeCounts,
       viewerDislikedCommentIds

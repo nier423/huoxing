@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  formatDebateTopicDateLabel,
-  getDebateTopicEndMs,
+  formatDebateTopicDateTimeLabel,
   type DebateTopicStatus,
 } from "@/lib/debate-schedule";
 
@@ -14,6 +13,7 @@ interface HomeDebateEntryProps {
   title: string;
   description?: string | null;
   startsAt: string | null;
+  endsAt: string | null;
   status: DebateTopicStatus;
   isActive?: boolean;
 }
@@ -42,16 +42,17 @@ export default function HomeDebateEntry({
   title,
   description,
   startsAt,
+  endsAt,
   status,
   isActive = false,
 }: HomeDebateEntryProps) {
-  const statusMeta = !startsAt
+  const statusMeta = !startsAt || !endsAt
     ? "\u65f6\u95f4\u5f85\u5b9a"
     : status === "ongoing"
-      ? `\u5f00\u653e\u81f3 ${formatDebateTopicDateLabel(getDebateTopicEndMs(startsAt))}`
+      ? `\u5f00\u653e\u81f3 ${formatDebateTopicDateTimeLabel(endsAt)}`
       : status === "not_started"
-        ? `${formatDebateTopicDateLabel(startsAt)} \u5f00\u542f`
-        : `${formatDebateTopicDateLabel(getDebateTopicEndMs(startsAt))} \u5df2\u7ed3\u675f`;
+        ? `${formatDebateTopicDateTimeLabel(startsAt)} \u5f00\u542f`
+        : `${formatDebateTopicDateTimeLabel(endsAt)} \u5df2\u7ed3\u675f`;
   const statusBadgeClass =
     status === "ongoing"
       ? "bg-[#7F2F17] text-[#FFF3EB]"

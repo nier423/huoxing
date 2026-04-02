@@ -22,8 +22,9 @@ export default async function Home() {
           title: topic.title,
           description: topic.description,
           startsAt: topic.startsAt,
-          status: topic.startsAt
-            ? getDebateTopicTiming(topic.startsAt, nowMs).status
+          endsAt: topic.endsAt,
+          status: topic.startsAt && topic.endsAt
+            ? getDebateTopicTiming(topic.startsAt, topic.endsAt, nowMs).status
             : "not_started",
         }))
       : [];

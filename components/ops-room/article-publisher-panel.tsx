@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, FilePlus2, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import IssueDebateTopicsManager from '@/components/ops-room/issue-debate-topics-manager'
 import {
   createAdminArticle,
   createAdminIssue,
@@ -1258,6 +1259,11 @@ export default function ArticlePublisherPanel() {
               })}
             </div>
           )}
+
+          <IssueDebateTopicsManager
+            issues={issues}
+            loginPath={OPS_ROOM_ARTICLE_LOGIN_PATH}
+          />
         </section>
       </div>
     </div>

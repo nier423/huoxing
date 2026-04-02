@@ -3,6 +3,7 @@ export type DebateTopicStatus = "not_started" | "ongoing" | "ended";
 export interface SchedulableDebateTopic {
   id: string;
   startsAt: string | null;
+  endsAt: string | null;
 }
 
 export interface DebateTopicTiming {
@@ -12,7 +13,6 @@ export interface DebateTopicTiming {
   timeLeftMs: number;
 }
 
-export const DEBATE_TOPIC_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
 const DEBATE_TIME_ZONE = "Asia/Shanghai";
 
 const monthDayFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -30,26 +30,27 @@ const monthDayTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
   hour12: false,
 });
 
-function parseStartsAt(startsAt: string) {
-  const startMs = Date.parse(startsAt);
+function parseTimestamp(value: string, fieldName: "startsAt" | "endsAt") {
+  const timestampMs = Date.parse(value);
 
-  if (Number.isNaN(startMs)) {
-    throw new Error(`Invalid debate topic startsAt: ${startsAt}`);
+  if (Number.isNaN(timestampMs)) {
+    throw new Error(`Invalid debate topic ${fieldName}: ${value}`);
   }
 
-  return startMs;
-}
-
-export function getDebateTopicEndMs(startsAt: string) {
-  return parseStartsAt(startsAt) + DEBATE_TOPIC_DURATION_MS;
+  return timestampMs;
 }
 
 export function getDebateTopicTiming(
   startsAt: string,
+  endsAt: string,
   nowMs = Date.now()
 ): DebateTopicTiming {
-  const startMs = parseStartsAt(startsAt);
-  const endMs = startMs + DEBATE_TOPIC_DURATION_MS;
+  const startMs = parseTimestamp(startsAt, "startsAt");
+  const endMs = parseTimestamp(endsAt, "endsAt");
+
+  if (endMs <= startMs) {
+    throw new Error(`Debate topic endsAt must be after startsAt: ${startsAt} -> ${endsAt}`);
+  }
 
   if (nowMs < startMs) {
     return {
@@ -87,10 +88,13 @@ export function selectDefaultDebateTopicId<T extends SchedulableDebateTopic>(
   }
 
   const scheduledTopics = topics
-    .filter((topic): topic is T & { startsAt: string } => Boolean(topic.startsAt))
+    .filter(
+      (topic): topic is T & { startsAt: string; endsAt: string } =>
+        Boolean(topic.startsAt && topic.endsAt)
+    )
     .map((topic) => ({
       ...topic,
-      timing: getDebateTopicTiming(topic.startsAt, nowMs),
+      timing: getDebateTopicTiming(topic.startsAt, topic.endsAt, nowMs),
     }));
 
   const ongoingTopic = scheduledTopics

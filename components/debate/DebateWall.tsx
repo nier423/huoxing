@@ -495,12 +495,12 @@ function formatTime(seconds: number) {
   );
 
   const activeTopicTiming = useMemo(() => {
-    if (!activeTopic?.startsAt) {
+    if (!activeTopic?.startsAt || !activeTopic?.endsAt) {
       return null;
     }
 
-    return getDebateTopicTiming(activeTopic.startsAt, nowMs);
-  }, [activeTopic?.startsAt, nowMs]);
+    return getDebateTopicTiming(activeTopic.startsAt, activeTopic.endsAt, nowMs);
+  }, [activeTopic?.endsAt, activeTopic?.startsAt, nowMs]);
 
   const debateStatus = activeTopicTiming?.status ?? "not_started";
   const localTimeLeft = activeTopicTiming
@@ -619,7 +619,7 @@ function formatTime(seconds: number) {
 
   const handleOpenComposer = () => {
   if (activeTopic && !activeTopicTiming) {
-    showStatus("当前辩题尚未配置开始时间。", "error");
+    showStatus("当前辩题尚未配置完整的开始和结束时间。", "error");
     return;
   }
   if (!activeTopic) {
@@ -647,7 +647,7 @@ function formatTime(seconds: number) {
 
   const handleCreateComment = () => {
   if (activeTopic && !activeTopicTiming) {
-    showStatus("当前辩题尚未配置开始时间。", "error");
+    showStatus("当前辩题尚未配置完整的开始和结束时间。", "error");
     return;
   }
   if (!activeTopic) {

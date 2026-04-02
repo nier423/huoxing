@@ -61,6 +61,7 @@ const ISSUE_SELECT = `
   slug,
   label,
   title,
+  cover_image,
   is_current,
   sort_order,
   published_at
