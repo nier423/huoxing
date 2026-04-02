@@ -82,35 +82,54 @@ async function getDebateTopicSummariesInternal(
 ): Promise<DebateTopicSummary[]> {
   const supabase = createClient();
   const nowIso = new Date().toISOString();
-  const { data: topicsData, error: topicsError } = await supabase
-    .from("debate_topics")
+  const { data: linkRows, error: linksError } = await supabase
+    .from("debate_topic_issue_links")
     .select(
       `
-        id,
-        issue_id,
-        title,
-        description,
-        sort_order,
-        starts_at,
-        ends_at,
-        created_at,
+        debate_topic_id,
         issue:issues!inner(
           published_at
+        ),
+        topic:debate_topics!inner(
+          id,
+          issue_id,
+          title,
+          description,
+          sort_order,
+          starts_at,
+          ends_at,
+          created_at
         )
       `
     )
     .eq("issue_id", issueId)
     .not("issue.published_at", "is", null)
-    .lte("issue.published_at", nowIso)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
+    .lte("issue.published_at", nowIso);
 
-  if (topicsError || !topicsData) {
-    console.error("[getDebateTopicSummariesByIssueId] Failed to load topics:", topicsError);
+  if (linksError || !linkRows) {
+    console.error("[getDebateTopicSummariesByIssueId] Failed to load topics:", linksError);
     return [];
   }
 
-  return (topicsData as RawRow[]).map(mapTopic);
+  const topicMap = new Map<string, DebateTopicSummary>();
+
+  for (const row of linkRows as RawRow[]) {
+    const topic = (row.topic as RawRow | null | undefined) ?? null;
+    if (!topic) {
+      continue;
+    }
+
+    const mappedTopic = mapTopic(topic);
+    topicMap.set(mappedTopic.id, mappedTopic);
+  }
+
+  return Array.from(topicMap.values()).sort((left, right) => {
+    if (left.sortOrder !== right.sortOrder) {
+      return left.sortOrder - right.sortOrder;
+    }
+
+    return left.createdAt.localeCompare(right.createdAt);
+  });
 }
 
 export async function getDebateTopicSummariesByIssueId(

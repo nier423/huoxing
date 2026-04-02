@@ -410,7 +410,13 @@ export async function createAdminIssue(
 
 export async function deleteAdminIssue(
   issueId: string
-): Promise<ActionResult<{ deletedArticleCount: number; deletedDebateTopicCount: number }>> {
+): Promise<
+  ActionResult<{
+    deletedArticleCount: number
+    deletedDebateTopicCount: number
+    detachedDebateTopicCount: number
+  }>
+> {
   try {
     const adminAccess = await requireArticleAdmin()
     if (!adminAccess.ok) {
@@ -485,10 +491,13 @@ export async function deleteAdminIssue(
       }
     }
 
-    const [{ data: articleRows, error: articleFetchError }, { data: debateTopicRows, error: debateFetchError }] =
+    const [{ data: articleRows, error: articleFetchError }, { data: debateLinkRows, error: debateFetchError }] =
       await Promise.all([
         adminClient.from('articles').select('id').eq('issue_id', issueId),
-        adminClient.from('debate_topics').select('id').eq('issue_id', issueId),
+        adminClient
+          .from('debate_topic_issue_links')
+          .select('debate_topic_id')
+          .eq('issue_id', issueId),
       ])
 
     if (articleFetchError) {
@@ -510,11 +519,132 @@ export async function deleteAdminIssue(
     const articleIds = ((articleRows as RawArticleRow[] | null) ?? [])
       .map((row) => String(row.id ?? ''))
       .filter(Boolean)
-    const debateTopicIds = ((debateTopicRows as RawDebateRow[] | null) ?? [])
-      .map((row) => String(row.id ?? ''))
-      .filter(Boolean)
+    let debateTopicIds = Array.from(
+      new Set(
+        ((debateLinkRows as RawDebateRow[] | null) ?? [])
+          .map((row) => String(row.debate_topic_id ?? ''))
+          .filter(Boolean)
+      )
+    )
+
+    let deletedDebateTopicCount = 0
+    let detachedDebateTopicCount = 0
 
     if (debateTopicIds.length > 0) {
+      const [
+        { data: allDebateLinkRows, error: allDebateLinksError },
+        { data: debateTopicRows, error: debateTopicFetchError },
+      ] = await Promise.all([
+        adminClient
+          .from('debate_topic_issue_links')
+          .select('debate_topic_id, issue_id')
+          .in('debate_topic_id', debateTopicIds),
+        adminClient.from('debate_topics').select('id, issue_id').in('id', debateTopicIds),
+      ])
+
+      if (allDebateLinksError) {
+        return {
+          success: false,
+          message: '读取辩题期刊关联失败。',
+          error: allDebateLinksError.message,
+        }
+      }
+
+      if (debateTopicFetchError) {
+        return {
+          success: false,
+          message: '读取辩题信息失败。',
+          error: debateTopicFetchError.message,
+        }
+      }
+
+      const topicIssueMap = new Map<string, string[]>()
+      for (const row of (allDebateLinkRows as RawDebateRow[] | null) ?? []) {
+        const topicId = String(row.debate_topic_id ?? '')
+        const linkedIssueId = String(row.issue_id ?? '')
+
+        if (!topicId || !linkedIssueId) {
+          continue
+        }
+
+        const linkedIssueIds = topicIssueMap.get(topicId) ?? []
+        linkedIssueIds.push(linkedIssueId)
+        topicIssueMap.set(topicId, linkedIssueIds)
+      }
+
+      const topicOwnerIssueMap = new Map<string, string>()
+      for (const row of (debateTopicRows as RawDebateRow[] | null) ?? []) {
+        const topicId = String(row.id ?? '')
+        const ownerIssueId = String(row.issue_id ?? '')
+
+        if (!topicId || !ownerIssueId) {
+          continue
+        }
+
+        topicOwnerIssueMap.set(topicId, ownerIssueId)
+      }
+
+      const topicsToDelete: string[] = []
+      const topicsToDetach: string[] = []
+      const ownerReassignments: Array<{ topicId: string; nextIssueId: string }> = []
+
+      for (const topicId of debateTopicIds) {
+        const linkedIssueIds = topicIssueMap.get(topicId) ?? []
+        const remainingIssueIds = linkedIssueIds.filter((linkedIssueId) => linkedIssueId !== issueId)
+
+        if (remainingIssueIds.length === 0) {
+          topicsToDelete.push(topicId)
+          continue
+        }
+
+        topicsToDetach.push(topicId)
+        detachedDebateTopicCount += 1
+
+        if (topicOwnerIssueMap.get(topicId) === issueId) {
+          ownerReassignments.push({
+            topicId,
+            nextIssueId: remainingIssueIds[0],
+          })
+        }
+      }
+
+      if (ownerReassignments.length > 0) {
+        const ownerUpdateResults = await Promise.all(
+          ownerReassignments.map(({ topicId, nextIssueId }) =>
+            adminClient.from('debate_topics').update({ issue_id: nextIssueId }).eq('id', topicId)
+          )
+        )
+
+        const ownerUpdateError = ownerUpdateResults.find((result) => result.error)?.error
+        if (ownerUpdateError) {
+          return {
+            success: false,
+            message: '更新共享辩题主期刊失败。',
+            error: ownerUpdateError.message,
+          }
+        }
+      }
+
+      if (topicsToDetach.length > 0) {
+        const { error: detachLinksError } = await adminClient
+          .from('debate_topic_issue_links')
+          .delete()
+          .eq('issue_id', issueId)
+          .in('debate_topic_id', topicsToDetach)
+
+        if (detachLinksError) {
+          return {
+            success: false,
+            message: '从共享辩题中移除当前期刊失败。',
+            error: detachLinksError.message,
+          }
+        }
+      }
+
+      deletedDebateTopicCount = topicsToDelete.length
+      debateTopicIds =
+        topicsToDelete.length > 0 ? topicsToDelete : ['00000000-0000-0000-0000-000000000000']
+
       const { data: debateCommentRows, error: debateCommentFetchError } = await adminClient
         .from('debate_comments')
         .select('id')
@@ -616,7 +746,8 @@ export async function deleteAdminIssue(
       message: `期刊 "${toText(issue.label)} · ${toText(issue.title)}" 已删除。`,
       data: {
         deletedArticleCount: articleIds.length,
-        deletedDebateTopicCount: debateTopicIds.length,
+        deletedDebateTopicCount,
+        detachedDebateTopicCount,
       },
     }
   } catch (error) {

@@ -517,9 +517,11 @@ export default function ArticlePublisherPanel() {
 
     const deletedArticleCount = result.data?.deletedArticleCount ?? 0
     const deletedDebateTopicCount = result.data?.deletedDebateTopicCount ?? 0
+    const detachedDebateTopicCount = result.data?.detachedDebateTopicCount ?? 0
     const extraNotes = [
       deletedArticleCount > 0 ? `同时删除了 ${deletedArticleCount} 篇文章` : '',
       deletedDebateTopicCount > 0 ? `同时删除了 ${deletedDebateTopicCount} 个辩题` : '',
+      detachedDebateTopicCount > 0 ? `同时从 ${detachedDebateTopicCount} 个共享辩题中移除了本期` : '',
     ].filter(Boolean)
 
     setMessage(extraNotes.length > 0 ? `${result.message} ${extraNotes.join('，')}。` : result.message)

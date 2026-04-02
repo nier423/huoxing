@@ -21,6 +21,7 @@ interface IssueOption {
 
 interface TopicDraft {
   title: string
+  issueIds: string[]
   startsAt: string
   endsAt: string
 }
@@ -64,6 +65,7 @@ function formatDateTime(value: string | null) {
 function buildTopicDraft(topic: AdminDebateTopicSummary): TopicDraft {
   return {
     title: topic.title,
+    issueIds: topic.linkedIssueIds,
     startsAt: toDateTimeLocalValue(topic.startsAt),
     endsAt: toDateTimeLocalValue(topic.endsAt),
   }
@@ -115,6 +117,7 @@ export default function IssueDebateTopicsManager({
   const [message, setMessage] = useState('')
   const [messageTone, setMessageTone] = useState<MessageTone>('success')
   const [newTitle, setNewTitle] = useState('')
+  const [newIssueIds, setNewIssueIds] = useState<string[]>([])
   const [newStartsAt, setNewStartsAt] = useState('')
   const [newEndsAt, setNewEndsAt] = useState('')
 
@@ -127,6 +130,15 @@ export default function IssueDebateTopicsManager({
       return issues[0]?.id ?? ''
     })
   }, [issues])
+
+  useEffect(() => {
+    if (!selectedIssueId) {
+      setNewIssueIds([])
+      return
+    }
+
+    setNewIssueIds([selectedIssueId])
+  }, [selectedIssueId])
 
   const handleGuardFailure = useCallback(
     (error?: string, fallbackMessage?: string) => {
@@ -148,6 +160,14 @@ export default function IssueDebateTopicsManager({
   const selectedIssue = useMemo(
     () => issues.find((issue) => issue.id === selectedIssueId) ?? null,
     [issues, selectedIssueId]
+  )
+
+  const issueLabelMap = useMemo(
+    () =>
+      new Map(
+        issues.map((issue) => [issue.id, `${issue.label} · ${getIssueDisplayTitle(issue)}`])
+      ),
+    [issues]
   )
 
   const loadTopics = useCallback(
@@ -190,6 +210,7 @@ export default function IssueDebateTopicsManager({
       ...currentDrafts,
       [topicId]: {
         title: currentDrafts[topicId]?.title ?? '',
+        issueIds: currentDrafts[topicId]?.issueIds ?? [],
         startsAt: currentDrafts[topicId]?.startsAt ?? '',
         endsAt: currentDrafts[topicId]?.endsAt ?? '',
         ...patch,
@@ -199,8 +220,17 @@ export default function IssueDebateTopicsManager({
 
   const resetCreateForm = () => {
     setNewTitle('')
+    setNewIssueIds(selectedIssueId ? [selectedIssueId] : [])
     setNewStartsAt('')
     setNewEndsAt('')
+  }
+
+  const toggleIssueId = (issueIds: string[], issueId: string) => {
+    if (issueIds.includes(issueId)) {
+      return issueIds.filter((currentIssueId) => currentIssueId !== issueId)
+    }
+
+    return [...issueIds, issueId]
   }
 
   const handleCreate = async () => {
@@ -214,7 +244,7 @@ export default function IssueDebateTopicsManager({
     setMessage('')
 
     const result = await createAdminDebateTopic({
-      issueId: selectedIssueId,
+      issueIds: newIssueIds,
       title: newTitle,
       startsAt: newStartsAt ? new Date(newStartsAt).toISOString() : null,
       endsAt: newEndsAt ? new Date(newEndsAt).toISOString() : null,
@@ -244,6 +274,7 @@ export default function IssueDebateTopicsManager({
 
     const result = await updateAdminDebateTopic({
       topicId,
+      issueIds: draft.issueIds,
       title: draft.title,
       startsAt: draft.startsAt ? new Date(draft.startsAt).toISOString() : null,
       endsAt: draft.endsAt ? new Date(draft.endsAt).toISOString() : null,
@@ -370,6 +401,34 @@ export default function IssueDebateTopicsManager({
                 />
               </div>
 
+              <div className="md:col-span-2">
+                <span className="mb-1.5 block text-xs font-youyou text-[#5D5D5D]">显示期刊</span>
+                <div className="flex flex-wrap gap-2">
+                  {issues.map((issue) => {
+                    const checked = newIssueIds.includes(issue.id)
+
+                    return (
+                      <label
+                        key={issue.id}
+                        className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-xs transition-colors ${
+                          checked
+                            ? 'border-[#A1887F] bg-[#F7F1EC] text-[#6B5648]'
+                            : 'border-[#E8E4DF] bg-white text-[#8D8D8D]'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => setNewIssueIds((currentIssueIds) => toggleIssueId(currentIssueIds, issue.id))}
+                          className="h-3.5 w-3.5 rounded border-[#D7CCC8] text-[#A1887F] focus:ring-[#A1887F]"
+                        />
+                        <span>{issue.label}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
               <div>
                 <label className="mb-1.5 block text-xs font-youyou text-[#5D5D5D]">开始时间</label>
                 <input
@@ -395,7 +454,7 @@ export default function IssueDebateTopicsManager({
               <button
                 type="button"
                 onClick={() => void handleCreate()}
-                disabled={creating || !newTitle.trim()}
+                disabled={creating || !newTitle.trim() || newIssueIds.length === 0}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#3A3A3A] px-4 py-2.5 text-sm text-white transition-colors hover:bg-[#2A2A2A] disabled:bg-[#8D8D8D]"
               >
                 {creating ? (
@@ -450,6 +509,13 @@ export default function IssueDebateTopicsManager({
                           </div>
                           <p className="mt-2 text-xs leading-6 text-[#8D8D8D]">
                             开始：{formatDateTime(topic.startsAt)} ｜ 结束：{formatDateTime(topic.endsAt)}
+                          </p>
+                          <p className="text-xs leading-6 text-[#8D8D8D]">
+                            显示于：
+                            {draft.issueIds
+                              .map((issueId) => issueLabelMap.get(issueId))
+                              .filter(Boolean)
+                              .join('、') || '未选择期刊'}
                           </p>
                         </div>
 
@@ -515,6 +581,40 @@ export default function IssueDebateTopicsManager({
                             }
                             className="w-full rounded-xl border border-[#E8E4DF] bg-[#FCFBF8] px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
                           />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <span className="mb-1.5 block text-xs font-youyou text-[#5D5D5D]">
+                            显示期刊
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {issues.map((issue) => {
+                              const checked = draft.issueIds.includes(issue.id)
+
+                              return (
+                                <label
+                                  key={issue.id}
+                                  className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-xs transition-colors ${
+                                    checked
+                                      ? 'border-[#A1887F] bg-[#F7F1EC] text-[#6B5648]'
+                                      : 'border-[#E8E4DF] bg-white text-[#8D8D8D]'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() =>
+                                      updateDraft(topic.id, {
+                                        issueIds: toggleIssueId(draft.issueIds, issue.id),
+                                      })
+                                    }
+                                    className="h-3.5 w-3.5 rounded border-[#D7CCC8] text-[#A1887F] focus:ring-[#A1887F]"
+                                  />
+                                  <span>{issue.label}</span>
+                                </label>
+                              )
+                            })}
+                          </div>
                         </div>
 
                         <div>
