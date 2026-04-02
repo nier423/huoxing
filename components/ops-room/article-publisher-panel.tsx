@@ -130,12 +130,52 @@ function getLatestCreatedIssue(issues: AdminIssueSummary[]) {
   return [...issues].sort((left, right) => right.sortOrder - left.sortOrder)[0] ?? null
 }
 
+function getDefaultArticleListIssueId(issues: AdminIssueSummary[]) {
+  return getAutoCurrentIssue(issues)?.id ?? getLatestCreatedIssue(issues)?.id ?? issues[0]?.id ?? ''
+}
+
+function getIssueTimingState(publishedAt: string | null) {
+  if (!publishedAt) {
+    return 'draft' as const
+  }
+
+  const issueTime = new Date(publishedAt).getTime()
+  if (Number.isNaN(issueTime)) {
+    return 'draft' as const
+  }
+
+  return issueTime <= Date.now() ? ('published' as const) : ('scheduled' as const)
+}
+
+function getIssueStatusLabel(issue: AdminIssueSummary | null, currentIssueId: string | null) {
+  if (!issue) {
+    return ''
+  }
+
+  if (currentIssueId && issue.id === currentIssueId) {
+    return '当前上线期'
+  }
+
+  const timingState = getIssueTimingState(issue.publishedAt)
+  if (timingState === 'scheduled') {
+    return '定时中'
+  }
+
+  if (timingState === 'published') {
+    return '已上线'
+  }
+
+  return '未排期'
+}
+
 export default function ArticlePublisherPanel() {
   const router = useRouter()
   const [articles, setArticles] = useState<AdminArticleSummary[]>([])
   const [issues, setIssues] = useState<AdminIssueSummary[]>([])
   const [currentIssue, setCurrentIssue] = useState<AdminIssueSummary | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [articleListIssueId, setArticleListIssueId] = useState('')
+  const [loadingIssues, setLoadingIssues] = useState(true)
+  const [loadingArticles, setLoadingArticles] = useState(true)
   const [publishing, setPublishing] = useState(false)
   const [applyingArticleId, setApplyingArticleId] = useState('')
   const [confirmDeleteArticleId, setConfirmDeleteArticleId] = useState('')
@@ -180,14 +220,13 @@ export default function ArticlePublisherPanel() {
     return false
   }, [router])
 
-  const loadPanelData = useCallback(async () => {
-    setLoading(true)
-
+  const loadIssues = useCallback(async () => {
+    setLoadingIssues(true)
     const issuesResult = await getAdminIssues()
 
     if (!issuesResult.success) {
       handleGuardFailure(issuesResult.error, issuesResult.message)
-      setLoading(false)
+      setLoadingIssues(false)
       return
     }
 
@@ -206,23 +245,39 @@ export default function ArticlePublisherPanel() {
 
       return getDefaultIssueId(nextIssues)
     })
+    setArticleListIssueId((currentIssueId) => {
+      if (currentIssueId && nextIssues.some((issue) => issue.id === currentIssueId)) {
+        return currentIssueId
+      }
 
-    if (!nextCurrentIssue) {
+      return getDefaultArticleListIssueId(nextIssues)
+    })
+    setLoadingIssues(false)
+  }, [handleGuardFailure])
+
+  useEffect(() => {
+    void loadIssues()
+  }, [loadIssues])
+
+  const loadArticles = useCallback(async () => {
+    setLoadingArticles(true)
+
+    if (!articleListIssueId) {
       setArticles([])
       setSelectedArticleTime(null)
       setConfirmDeleteArticleId('')
-      setLoading(false)
+      setLoadingArticles(false)
       return
     }
 
     const articlesResult = await getAdminArticles({
-      issueId: nextCurrentIssue.id,
+      issueId: articleListIssueId,
       category: filterCategory,
     })
 
     if (!articlesResult.success) {
       handleGuardFailure(articlesResult.error, articlesResult.message)
-      setLoading(false)
+      setLoadingArticles(false)
       return
     }
 
@@ -244,12 +299,12 @@ export default function ArticlePublisherPanel() {
         ? currentSelected
         : null
     })
-    setLoading(false)
-  }, [filterCategory, handleGuardFailure])
+    setLoadingArticles(false)
+  }, [articleListIssueId, filterCategory, handleGuardFailure])
 
   useEffect(() => {
-    void loadPanelData()
-  }, [loadPanelData])
+    void loadArticles()
+  }, [loadArticles])
 
   const resetForm = () => {
     setTitle('')
@@ -289,8 +344,13 @@ export default function ArticlePublisherPanel() {
         : result.message
     )
     setIsError(false)
+    const createdIssueId = result.data?.issueId ?? issueId
     resetForm()
-    await loadPanelData()
+    if (createdIssueId && createdIssueId !== articleListIssueId) {
+      setArticleListIssueId(createdIssueId)
+    } else {
+      await loadArticles()
+    }
     setPublishing(false)
   }
 
@@ -330,7 +390,7 @@ export default function ArticlePublisherPanel() {
     setMessage(`已将《${selectedArticleTime.title}》的发布时间应用到《${article.title}》。`)
     setIsError(false)
     setSelectedArticleTime(null)
-    await loadPanelData()
+    await loadArticles()
     setApplyingArticleId('')
   }
 
@@ -370,7 +430,7 @@ export default function ArticlePublisherPanel() {
     setMessage(`已用《${article.title}》替换《${selectedArticleTime.title}》，旧文章已删除。`)
     setIsError(false)
     setSelectedArticleTime(null)
-    await loadPanelData()
+    await loadArticles()
     setApplyingArticleId('')
   }
 
@@ -399,7 +459,7 @@ export default function ArticlePublisherPanel() {
     setSelectedArticleTime((currentSelected) =>
       currentSelected?.articleId === article.id ? null : currentSelected
     )
-    await loadPanelData()
+    await loadArticles()
     setDeletingArticleId('')
   }
 
@@ -410,7 +470,7 @@ export default function ArticlePublisherPanel() {
     setSelectedArticleTime((currentSelected) =>
       currentSelected?.articleId === article.id ? null : currentSelected
     )
-    await loadPanelData()
+    await loadArticles()
     setDeletingArticleId('')
   }
 
@@ -433,7 +493,7 @@ export default function ArticlePublisherPanel() {
     setSelectedArticleTime((currentSelected) =>
       currentSelected?.articleId === article.id ? null : currentSelected
     )
-    await loadPanelData()
+    await loadArticles()
     setDeletingArticleId('')
   }
 
@@ -464,12 +524,15 @@ export default function ArticlePublisherPanel() {
     setMessage(extraNotes.length > 0 ? `${result.message} ${extraNotes.join('，')}。` : result.message)
     setIsError(false)
     setConfirmDeleteIssueId('')
-    await loadPanelData()
+    await loadIssues()
     setDeletingIssueId('')
   }
 
   const selectedIssue = issues.find((issue) => issue.id === issueId) ?? null
+  const browsedIssue = issues.find((issue) => issue.id === articleListIssueId) ?? null
   const latestCreatedIssue = getLatestCreatedIssue(issues)
+  const isRefreshing = loadingIssues || loadingArticles
+  const articlePanelLoading = loadingIssues || loadingArticles
 
   return (
     <div className="min-h-screen bg-[#F7F5F0]">
@@ -494,12 +557,15 @@ export default function ArticlePublisherPanel() {
 
           <button
             type="button"
-            onClick={() => void loadPanelData()}
-            disabled={loading}
+            onClick={() => {
+              void loadIssues()
+              void loadArticles()
+            }}
+            disabled={isRefreshing}
             className="rounded-lg p-2 text-[#5D5D5D] transition-colors hover:bg-[#F7F5F0] hover:text-[#3A3A3A] disabled:opacity-50"
             title="刷新"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -594,7 +660,7 @@ export default function ArticlePublisherPanel() {
                   {issues.map((issue) => (
                     <option key={issue.id} value={issue.id}>
                       {issue.label} · {getIssueDisplayTitle(issue)}
-                      {currentIssue?.id === issue.id ? '（当前刊）' : ''}
+                      {` (${getIssueStatusLabel(issue, currentIssue?.id ?? null)})`}
                     </option>
                   ))}
                 </select>
@@ -604,7 +670,7 @@ export default function ArticlePublisherPanel() {
             {selectedIssue ? (
               <div className="rounded-2xl border border-[#E8E4DF] bg-[#F7F5F0] px-4 py-3 text-sm text-[#6A6A6A]">
                 当前选择：{selectedIssue.label} · {getIssueDisplayTitle(selectedIssue)}
-                {currentIssue?.id === selectedIssue.id ? '（当前刊）' : '（归档刊）'}
+                {` (${getIssueStatusLabel(selectedIssue, currentIssue?.id ?? null)})`}
               </div>
             ) : (
               <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
@@ -666,9 +732,9 @@ export default function ArticlePublisherPanel() {
 
         <aside className="rounded-3xl border border-[#E8E4DF] bg-white/70 p-6 backdrop-blur-sm">
           <div className="mb-5">
-            <h2 className="font-youyou text-2xl text-[#3A3A3A]">当前期栏目文章</h2>
+            <h2 className="font-youyou text-2xl text-[#3A3A3A]">期刊栏目文章</h2>
             <p className="mt-1 text-sm text-[#8D8D8D]">
-              先选栏目，再从旧文章提取时间，应用到新文章上完成替换。
+              这里会显示后台已入库的文章，包括定时中或尚未上线的期刊。先选栏目，再从旧文章提取时间，应用到新文章上完成替换。
             </p>
           </div>
 
@@ -681,8 +747,37 @@ export default function ArticlePublisherPanel() {
                 </p>
               </>
             ) : (
-              <p>当前还没有已上线的期刊，暂时无法按当前期筛选文章。</p>
+              <p>当前还没有已上线的期刊，但你仍然可以在下方查看定时中或未排期的期刊文章。</p>
             )}
+
+            <div className="mt-4 border-t border-[#E8E4DF] pt-4">
+              <label className="mb-2 block text-xs font-youyou uppercase tracking-[0.2em] text-[#8D8D8D]">
+                查看期刊
+              </label>
+              <select
+                value={articleListIssueId}
+                onChange={(event) => setArticleListIssueId(event.target.value)}
+                disabled={loadingIssues || issues.length === 0}
+                className="w-full rounded-xl border border-[#E8E4DF] bg-white px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F] disabled:bg-[#F1EEEA] disabled:text-[#A8A19A]"
+              >
+                {issues.map((issue) => (
+                  <option key={issue.id} value={issue.id}>
+                    {issue.label} · {getIssueDisplayTitle(issue)} ({getIssueStatusLabel(issue, currentIssue?.id ?? null)})
+                  </option>
+                ))}
+              </select>
+
+              {browsedIssue ? (
+                <p className="mt-2 text-xs text-[#8D8D8D]">
+                  当前显示：{browsedIssue.label} · {getIssueDisplayTitle(browsedIssue)}
+                  {` (${getIssueStatusLabel(browsedIssue, currentIssue?.id ?? null)})`}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-[#8D8D8D]">
+                  这里会显示后台已入库的文章，包括定时中和未上线期刊的内容。
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="mb-6 flex flex-wrap gap-2">
@@ -729,17 +824,17 @@ export default function ArticlePublisherPanel() {
             </div>
           ) : null}
 
-          {loading ? (
+          {articlePanelLoading ? (
             <div className="py-10 text-center text-sm text-[#8D8D8D]">
-              正在读取当前期栏目文章...
+              正在读取期刊文章...
             </div>
-          ) : !currentIssue ? (
+          ) : !browsedIssue ? (
             <div className="py-10 text-center text-sm text-[#8D8D8D]">
-              当前还没有可用的当前期文章。
+              还没有可查看的期刊文章。
             </div>
           ) : articles.length === 0 ? (
             <div className="py-10 text-center text-sm text-[#8D8D8D]">
-              当前期的“{filterCategory}”还没有文章。
+              {browsedIssue.label} · {getIssueDisplayTitle(browsedIssue)} 的“{filterCategory}”还没有文章。
             </div>
           ) : (
             <div className="space-y-4">
@@ -811,7 +906,7 @@ export default function ArticlePublisherPanel() {
                                 publishedAt: isoDate,
                               }
                             })
-                            await loadPanelData()
+                            await loadArticles()
                           }}
                         />
                       </div>
@@ -983,7 +1078,7 @@ export default function ArticlePublisherPanel() {
                       setNewIssueSlug('')
                       setNewIssueTitleManual(false)
                       setNewIssueSlugManual(false)
-                      await loadPanelData()
+                      await loadIssues()
                       setCreatingIssue(false)
                     }}
                     className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#3A3A3A] px-4 py-2.5 text-sm text-white transition-colors hover:bg-[#2A2A2A] disabled:bg-[#8D8D8D]"
@@ -1006,19 +1101,16 @@ export default function ArticlePublisherPanel() {
             )}
           </div>
 
-          {loading ? (
+          {loadingIssues ? (
             <div className="py-10 text-center text-sm text-[#8D8D8D]">正在读取期刊列表...</div>
           ) : issues.length === 0 ? (
             <div className="py-10 text-center text-sm text-[#8D8D8D]">还没有期刊记录，请使用上方表单创建第一期。</div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {issues.map((issue) => {
-                const isPublished = Boolean(
-                  issue.publishedAt && new Date(issue.publishedAt) <= new Date()
-                )
-                const isScheduled = Boolean(
-                  issue.publishedAt && new Date(issue.publishedAt) > new Date()
-                )
+                const issueTimingState = getIssueTimingState(issue.publishedAt)
+                const isPublished = issueTimingState === 'published'
+                const isScheduled = issueTimingState === 'scheduled'
                 const canDeleteIssue = latestCreatedIssue?.id === issue.id && !isPublished
                 const isDeleteIssueConfirming = confirmDeleteIssueId === issue.id
                 const isDeletingIssue = deletingIssueId === issue.id
@@ -1065,7 +1157,7 @@ export default function ArticlePublisherPanel() {
                             const isoDate = new Date(val).toISOString()
                             const result = await updateIssuePublishedAt(issue.id, isoDate)
                             if (result.success) {
-                              await loadPanelData()
+                              await loadIssues()
                             } else {
                               setMessage(result.message)
                               setIsError(true)
@@ -1114,7 +1206,7 @@ export default function ArticlePublisherPanel() {
                             if (result.success) {
                               setMessage('封面已上传！')
                               setIsError(false)
-                              await loadPanelData()
+                              await loadIssues()
                             } else {
                               setMessage(result.message)
                               setIsError(true)
