@@ -10,6 +10,7 @@ interface DebateEntryItem {
   title: string;
   description?: string | null;
   startsAt: string | null;
+  endsAt: string | null;
   status: DebateTopicStatus;
 }
 
@@ -80,6 +81,7 @@ export default function HomeDebateEntryRail({
               title={entry.title}
               description={entry.description}
               startsAt={entry.startsAt}
+              endsAt={entry.endsAt}
               status={entry.status}
               isActive={isActive}
             />

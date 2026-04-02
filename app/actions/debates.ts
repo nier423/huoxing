@@ -1,10 +1,9 @@
 'use server'
 
 import { revalidatePath } from "next/cache";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { getDebateTopicTiming } from "@/lib/debate-schedule";
-import { createClient } from "@/lib/supabase/server";
 import type { DebateComment, DebateSide } from "@/lib/debates";
+import { createClient } from "@/lib/supabase/server";
 
 interface CreateDebateCommentInput {
   content: string;
@@ -55,6 +54,7 @@ export interface ToggleDebateCommentDislikeResult extends DebateActionResult {
 }
 
 type RawRow = Record<string, unknown>;
+type DebateCountTable = "debate_comment_likes" | "debate_comment_dislikes";
 
 function toText(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -84,23 +84,28 @@ function revalidateDebatePaths(issueSlug: string) {
     return;
   }
 
+  revalidatePath("/");
+  revalidatePath("/issues");
   revalidatePath(`/issues/${issueSlug}`);
   revalidatePath(`/issues/${issueSlug}/debate`);
 }
 
-async function getDebateCommentLikeCount(commentId: string) {
+async function getDebateCommentCount(
+  supabase: ReturnType<typeof createClient>,
+  table: DebateCountTable,
+  commentId: string
+) {
   if (!commentId) {
     return 0;
   }
 
-  const adminClient = createAdminClient();
-  const { count, error } = await adminClient
-    .from("debate_comment_likes")
+  const { count, error } = await supabase
+    .from(table)
     .select("comment_id", { count: "exact", head: true })
     .eq("comment_id", commentId);
 
   if (error) {
-    console.error("[getDebateCommentLikeCount] Failed to load like count:", error);
+    console.error(`[getDebateCommentCount] Failed to load ${table} count:`, error);
     return 0;
   }
 
@@ -111,7 +116,7 @@ export async function createDebateComment(
   input: CreateDebateCommentInput
 ): Promise<CreateDebateCommentResult> {
   if (!input.topicId) {
-    return { success: false, message: "辩题不存在，暂时无法留言。" };
+    return { success: false, message: "当前辩题不存在，暂时无法发言。" };
   }
 
   if (input.side !== "pro" && input.side !== "con") {
@@ -129,13 +134,12 @@ export async function createDebateComment(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { success: false, message: "请先登录后再留言。" };
+    return { success: false, message: "请先登录后再发言。" };
   }
 
-  const adminClient = createAdminClient();
-  const { data: topic, error: topicError } = await adminClient
+  const { data: topic, error: topicError } = await supabase
     .from("debate_topics")
-    .select("id, starts_at")
+    .select("id, starts_at, ends_at")
     .eq("id", input.topicId)
     .maybeSingle();
 
@@ -145,16 +149,17 @@ export async function createDebateComment(
   }
 
   if (!topic) {
-    return { success: false, message: "当前辩题不存在，暂时无法留言。" };
+    return { success: false, message: "当前辩题不存在，暂时无法发言。" };
   }
 
   const startsAt = toText(topic.starts_at) || null;
+  const endsAt = toText(topic.ends_at) || null;
 
-  if (!startsAt) {
-    return { success: false, message: "当前辩题尚未配置开始时间。" };
+  if (!startsAt || !endsAt) {
+    return { success: false, message: "当前辩题尚未配置完整的开始和结束时间。" };
   }
 
-  const topicTiming = getDebateTopicTiming(startsAt, Date.now());
+  const topicTiming = getDebateTopicTiming(startsAt, endsAt, Date.now());
 
   if (topicTiming.status === "not_started") {
     return { success: false, message: "辩论尚未开始，暂时不能发言。" };
@@ -222,6 +227,18 @@ export async function deleteDebateComment(
 
   if (String(existingComment.user_id ?? "") !== user.id) {
     return { success: false, message: "只能删除你自己的纸条。" };
+  }
+
+  const [deleteLikesResult, deleteDislikesResult] = await Promise.all([
+    supabase.from("debate_comment_likes").delete().eq("comment_id", input.commentId),
+    supabase.from("debate_comment_dislikes").delete().eq("comment_id", input.commentId),
+  ]);
+
+  const reactionDeleteError = deleteLikesResult.error ?? deleteDislikesResult.error;
+
+  if (reactionDeleteError) {
+    console.error("[deleteDebateComment] Failed to delete comment reactions:", reactionDeleteError);
+    return { success: false, message: "暂时无法清理这张纸条的互动记录，请稍后重试。" };
   }
 
   const { error: deleteError } = await supabase
@@ -307,7 +324,11 @@ export async function toggleDebateCommentLike(
       return { success: false, message: "取消点赞失败，请稍后重试。" };
     }
 
-    const likeCount = await getDebateCommentLikeCount(input.commentId);
+    const likeCount = await getDebateCommentCount(
+      supabase,
+      "debate_comment_likes",
+      input.commentId
+    );
     revalidateDebatePaths(input.issueSlug);
 
     return {
@@ -331,35 +352,20 @@ export async function toggleDebateCommentLike(
     return { success: false, message: "点赞失败，请稍后重试。" };
   }
 
-  const likeCount = await getDebateCommentLikeCount(input.commentId);
+  const likeCount = await getDebateCommentCount(
+    supabase,
+    "debate_comment_likes",
+    input.commentId
+  );
   revalidateDebatePaths(input.issueSlug);
 
   return {
     success: true,
-    message: "已点亮这张纸条。",
+    message: "已点赞这张纸条。",
     commentId: input.commentId,
     likeCount,
     liked: true,
   };
-}
-
-async function getDebateCommentDislikeCount(commentId: string) {
-  if (!commentId) {
-    return 0;
-  }
-
-  const adminClient = createAdminClient();
-  const { count, error } = await adminClient
-    .from("debate_comment_dislikes")
-    .select("comment_id", { count: "exact", head: true })
-    .eq("comment_id", commentId);
-
-  if (error) {
-    console.error("[getDebateCommentDislikeCount] Failed to load dislike count:", error);
-    return 0;
-  }
-
-  return count ?? 0;
 }
 
 export async function toggleDebateCommentDislike(
@@ -378,30 +384,16 @@ export async function toggleDebateCommentDislike(
     return { success: false, message: "请先登录后再踩。" };
   }
 
-  const adminClient = createAdminClient();
+  const { data: comment, error: commentError } = await supabase
+    .from("debate_comments")
+    .select("id, user_id, topic_id, side")
+    .eq("id", input.commentId)
+    .maybeSingle();
 
-  // Run all three validation queries in parallel
-  const [commentResult, userCommentsResult, existingDislikeResult] = await Promise.all([
-    supabase
-      .from("debate_comments")
-      .select("id, user_id, topic_id, side")
-      .eq("id", input.commentId)
-      .maybeSingle(),
-    // We'll fill topic_id after we get comment — separate fetch below
-    // Placeholder: resolved after comment fetch
-    Promise.resolve({ data: null as { side: string }[] | null, error: null }),
-    adminClient
-      .from("debate_comment_dislikes")
-      .select("comment_id", { count: "exact" })
-      .eq("comment_id", input.commentId)
-  ]);
-
-  if (commentResult.error) {
-    console.error("[toggleDebateCommentDislike] Failed to load comment:", commentResult.error);
+  if (commentError) {
+    console.error("[toggleDebateCommentDislike] Failed to load comment:", commentError);
     return { success: false, message: "暂时无法确认这张纸条，请稍后重试。" };
   }
-
-  const comment = commentResult.data;
 
   if (!comment) {
     return { success: false, message: "这张纸条已经不存在了。" };
@@ -411,51 +403,53 @@ export async function toggleDebateCommentDislike(
     return { success: false, message: "不能踩自己的纸条。" };
   }
 
-  // Now fetch user's side and existing dislike in parallel (we need topic_id from comment)
-  const [userCommentsResult2, existingDislikeResult2] = await Promise.all([
+  const [userCommentsResult, existingDislikeResult] = await Promise.all([
     supabase
       .from("debate_comments")
       .select("side")
       .eq("user_id", user.id)
-      .eq("topic_id", comment.topic_id)
+      .eq("topic_id", String(comment.topic_id ?? ""))
+      .order("created_at", { ascending: true })
       .limit(1),
-    adminClient
+    supabase
       .from("debate_comment_dislikes")
-      .select("comment_id", { count: "exact" })
+      .select("comment_id")
       .eq("comment_id", input.commentId)
       .eq("user_id", user.id)
       .maybeSingle(),
   ]);
 
-  // Use total count from the broader query (without user filter)
-  const currentDislikeCount = (existingDislikeResult.count ?? 0);
-
-  if (userCommentsResult2.error) {
-    console.error("[toggleDebateCommentDislike] Failed to load user comments:", userCommentsResult2.error);
+  if (userCommentsResult.error) {
+    console.error(
+      "[toggleDebateCommentDislike] Failed to load user comments:",
+      userCommentsResult.error
+    );
     return { success: false, message: "暂时无法确认你的阵营，请稍后重试。" };
   }
 
-  const userSide = userCommentsResult2.data && userCommentsResult2.data.length > 0
-    ? userCommentsResult2.data[0].side
-    : null;
+  const userSide =
+    userCommentsResult.data && userCommentsResult.data.length > 0
+      ? userCommentsResult.data[0].side
+      : null;
 
   if (!userSide) {
-    return { success: false, message: "贴上你的第一张纸条，亮明阵营后就可以踩对方啦！" };
+    return { success: false, message: "先贴上你的第一张纸条，亮明阵营后就可以踩对方啦。" };
   }
 
   if (userSide === comment.side) {
-    return { success: false, message: "只能踩对方阵营的纸条，不能背刺队友哦！" };
+    return { success: false, message: "只能踩对方阵营的纸条，不能背刺队友哦。" };
   }
 
-  if (existingDislikeResult2.error) {
-    console.error("[toggleDebateCommentDislike] Failed to load existing dislike:", existingDislikeResult2.error);
+  if (existingDislikeResult.error) {
+    console.error(
+      "[toggleDebateCommentDislike] Failed to load existing dislike:",
+      existingDislikeResult.error
+    );
     return { success: false, message: "暂时无法确认状态，请稍后重试。" };
   }
 
-  const existingDislike = existingDislikeResult2.data;
-
-  if (existingDislike) {
-    const { error: deleteError } = await adminClient
+  if (existingDislikeResult.data) {
+    const { error: deleteError } = await supabase
       .from("debate_comment_dislikes")
       .delete()
       .eq("comment_id", input.commentId)
@@ -466,18 +460,23 @@ export async function toggleDebateCommentDislike(
       return { success: false, message: "撤回失败，请稍后重试。" };
     }
 
+    const dislikeCount = await getDebateCommentCount(
+      supabase,
+      "debate_comment_dislikes",
+      input.commentId
+    );
     revalidateDebatePaths(input.issueSlug);
 
     return {
       success: true,
       message: "撤回啦。",
       commentId: input.commentId,
-      dislikeCount: Math.max(0, currentDislikeCount - 1),
+      dislikeCount,
       disliked: false,
     };
   }
 
-  const { error: insertError } = await adminClient
+  const { error: insertError } = await supabase
     .from("debate_comment_dislikes")
     .insert({
       comment_id: input.commentId,
@@ -489,13 +488,18 @@ export async function toggleDebateCommentDislike(
     return { success: false, message: "操作失败，请稍后重试。" };
   }
 
+  const dislikeCount = await getDebateCommentCount(
+    supabase,
+    "debate_comment_dislikes",
+    input.commentId
+  );
   revalidateDebatePaths(input.issueSlug);
 
   return {
     success: true,
-    message: "已踩！",
+    message: "已踩。",
     commentId: input.commentId,
-    dislikeCount: currentDislikeCount + 1,
+    dislikeCount,
     disliked: true,
   };
 }
