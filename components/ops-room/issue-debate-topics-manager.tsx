@@ -21,7 +21,6 @@ interface IssueOption {
 
 interface TopicDraft {
   title: string
-  description: string
   startsAt: string
   endsAt: string
 }
@@ -65,7 +64,6 @@ function formatDateTime(value: string | null) {
 function buildTopicDraft(topic: AdminDebateTopicSummary): TopicDraft {
   return {
     title: topic.title,
-    description: topic.description ?? '',
     startsAt: toDateTimeLocalValue(topic.startsAt),
     endsAt: toDateTimeLocalValue(topic.endsAt),
   }
@@ -117,7 +115,6 @@ export default function IssueDebateTopicsManager({
   const [message, setMessage] = useState('')
   const [messageTone, setMessageTone] = useState<MessageTone>('success')
   const [newTitle, setNewTitle] = useState('')
-  const [newDescription, setNewDescription] = useState('')
   const [newStartsAt, setNewStartsAt] = useState('')
   const [newEndsAt, setNewEndsAt] = useState('')
 
@@ -191,22 +188,17 @@ export default function IssueDebateTopicsManager({
   const updateDraft = (topicId: string, patch: Partial<TopicDraft>) => {
     setDrafts((currentDrafts) => ({
       ...currentDrafts,
-      [topicId]: Object.assign(
-        {
-          title: '',
-          description: '',
-          startsAt: '',
-          endsAt: '',
-        },
-        currentDrafts[topicId],
-        patch
-      ),
+      [topicId]: {
+        title: currentDrafts[topicId]?.title ?? '',
+        startsAt: currentDrafts[topicId]?.startsAt ?? '',
+        endsAt: currentDrafts[topicId]?.endsAt ?? '',
+        ...patch,
+      },
     }))
   }
 
   const resetCreateForm = () => {
     setNewTitle('')
-    setNewDescription('')
     setNewStartsAt('')
     setNewEndsAt('')
   }
@@ -224,7 +216,6 @@ export default function IssueDebateTopicsManager({
     const result = await createAdminDebateTopic({
       issueId: selectedIssueId,
       title: newTitle,
-      description: newDescription,
       startsAt: newStartsAt ? new Date(newStartsAt).toISOString() : null,
       endsAt: newEndsAt ? new Date(newEndsAt).toISOString() : null,
     })
@@ -254,7 +245,6 @@ export default function IssueDebateTopicsManager({
     const result = await updateAdminDebateTopic({
       topicId,
       title: draft.title,
-      description: draft.description,
       startsAt: draft.startsAt ? new Date(draft.startsAt).toISOString() : null,
       endsAt: draft.endsAt ? new Date(draft.endsAt).toISOString() : null,
     })
@@ -305,8 +295,7 @@ export default function IssueDebateTopicsManager({
           <div>
             <h3 className="font-youyou text-xl text-[#3A3A3A]">期刊辩题调度</h3>
             <p className="mt-1 text-sm leading-6 text-[#8D8D8D]">
-              给每一期录入辩题，并设置开始/结束时间。首页“最近活动”和辩论页会直接读取这里的
-              Supabase 数据。
+              给每一期设置辩题和开始、结束时间。
             </p>
           </div>
         </div>
@@ -354,7 +343,7 @@ export default function IssueDebateTopicsManager({
         </div>
       ) : (
         <>
-          <div className="mt-6 rounded-2xl border border-dashed border-[#D7CCC8] bg-white p-5">
+          <div className="mt-6">
             <div className="mb-4 flex items-center gap-3">
               <div className="rounded-xl bg-[#F7F5F0] p-2.5">
                 <MessageSquarePlus className="h-4 w-4 text-[#A1887F]" />
@@ -364,7 +353,7 @@ export default function IssueDebateTopicsManager({
                   为 {selectedIssue.label} · {getIssueDisplayTitle(selectedIssue)} 新建辩题
                 </h4>
                 <p className="text-xs text-[#8D8D8D]">
-                  开始时间和结束时间可以先留空，后续再补；但正式开放前建议两者一起设置好。
+                  开始和结束时间可以先留空，后面再补。
                 </p>
               </div>
             </div>
@@ -377,20 +366,7 @@ export default function IssueDebateTopicsManager({
                   value={newTitle}
                   onChange={(event) => setNewTitle(event.target.value)}
                   placeholder="例如：年轻人是否应该尽早离开舒适圈？"
-                  className="w-full rounded-xl border border-[#E8E4DF] bg-[#FCFBF8] px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-1.5 block text-xs font-youyou text-[#5D5D5D]">
-                  简介（可选）
-                </label>
-                <textarea
-                  value={newDescription}
-                  onChange={(event) => setNewDescription(event.target.value)}
-                  rows={3}
-                  placeholder="给前台一段简短说明，帮助读者更快进入辩题。"
-                  className="w-full rounded-xl border border-[#E8E4DF] bg-[#FCFBF8] px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
+                  className="w-full rounded-xl border border-[#E8E4DF] bg-white px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
                 />
               </div>
 
@@ -400,7 +376,7 @@ export default function IssueDebateTopicsManager({
                   type="datetime-local"
                   value={newStartsAt}
                   onChange={(event) => setNewStartsAt(event.target.value)}
-                  className="w-full rounded-xl border border-[#E8E4DF] bg-[#FCFBF8] px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
+                  className="w-full rounded-xl border border-[#E8E4DF] bg-white px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
                 />
               </div>
 
@@ -410,7 +386,7 @@ export default function IssueDebateTopicsManager({
                   type="datetime-local"
                   value={newEndsAt}
                   onChange={(event) => setNewEndsAt(event.target.value)}
-                  className="w-full rounded-xl border border-[#E8E4DF] bg-[#FCFBF8] px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
+                  className="w-full rounded-xl border border-[#E8E4DF] bg-white px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
                 />
               </div>
             </div>
@@ -422,20 +398,22 @@ export default function IssueDebateTopicsManager({
                 disabled={creating || !newTitle.trim()}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#3A3A3A] px-4 py-2.5 text-sm text-white transition-colors hover:bg-[#2A2A2A] disabled:bg-[#8D8D8D]"
               >
-                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquarePlus className="h-4 w-4" />}
+                {creating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MessageSquarePlus className="h-4 w-4" />
+                )}
                 <span className="font-youyou">{creating ? '创建中...' : '新增辩题'}</span>
               </button>
             </div>
           </div>
 
           <div className="mt-6">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h4 className="font-youyou text-lg text-[#3A3A3A]">当前期刊辩题列表</h4>
-                <p className="mt-1 text-xs text-[#8D8D8D]">
-                  共 {topics.length} 个辩题。保存后会同步更新前台展示与定时状态。
-                </p>
-              </div>
+            <div className="mb-4">
+              <h4 className="font-youyou text-lg text-[#3A3A3A]">当前期刊辩题列表</h4>
+              <p className="mt-1 text-xs text-[#8D8D8D]">
+                共 {topics.length} 个辩题。
+              </p>
             </div>
 
             {loading ? (
@@ -482,7 +460,11 @@ export default function IssueDebateTopicsManager({
                             disabled={isSaving}
                             className="inline-flex items-center gap-1.5 rounded-full bg-[#3A3A3A] px-4 py-1.5 text-xs text-white transition-colors hover:bg-[#2A2A2A] disabled:bg-[#8D8D8D]"
                           >
-                            {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                            {isSaving ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Save className="h-3.5 w-3.5" />
+                            )}
                             <span>{isSaving ? '保存中...' : '保存修改'}</span>
                           </button>
 
@@ -529,22 +511,6 @@ export default function IssueDebateTopicsManager({
                             onChange={(event) =>
                               updateDraft(topic.id, {
                                 title: event.target.value,
-                              })
-                            }
-                            className="w-full rounded-xl border border-[#E8E4DF] bg-[#FCFBF8] px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
-                          />
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="mb-1.5 block text-xs font-youyou text-[#5D5D5D]">
-                            简介（可选）
-                          </label>
-                          <textarea
-                            rows={3}
-                            value={draft.description}
-                            onChange={(event) =>
-                              updateDraft(topic.id, {
-                                description: event.target.value,
                               })
                             }
                             className="w-full rounded-xl border border-[#E8E4DF] bg-[#FCFBF8] px-3 py-2.5 text-sm text-[#3A3A3A] outline-none transition-colors focus:border-[#A1887F]"
