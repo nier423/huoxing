@@ -88,6 +88,6 @@ export const config = {
      * - favicon.ico (浏览器图标)
      * - 公共文件夹中的文件 (如 .svg, .png, .jpg 等)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|offline.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp|webmanifest)$).*)',
   ],
 }
