@@ -14,6 +14,7 @@ interface ActionResult<T = null> {
 export interface AdminDebateTopicSummary {
   id: string
   issueId: string
+  linkedIssueIds: string[]
   title: string
   description: string | null
   sortOrder: number
@@ -23,17 +24,16 @@ export interface AdminDebateTopicSummary {
 }
 
 interface CreateAdminDebateTopicInput {
-  issueId: string
+  issueIds: string[]
   title: string
-  description?: string | null
   startsAt?: string | null
   endsAt?: string | null
 }
 
 interface UpdateAdminDebateTopicInput {
   topicId: string
+  issueIds: string[]
   title: string
-  description?: string | null
   startsAt?: string | null
   endsAt?: string | null
 }
@@ -50,6 +50,78 @@ function getErrorMessage(error: unknown) {
   }
 
   return String(error)
+}
+
+function normalizeTopicText(input?: string | null) {
+  return input?.trim() ?? ''
+}
+
+function normalizeOptionalDate(input?: string | null) {
+  const trimmed = input?.trim() ?? ''
+  return trimmed || null
+}
+
+function normalizeIssueIds(issueIds?: string[] | null) {
+  const normalizedIds: string[] = []
+  const seenIds = new Set<string>()
+
+  for (const issueId of issueIds ?? []) {
+    const normalizedIssueId = issueId.trim()
+    if (!normalizedIssueId || seenIds.has(normalizedIssueId)) {
+      continue
+    }
+
+    seenIds.add(normalizedIssueId)
+    normalizedIds.push(normalizedIssueId)
+  }
+
+  return normalizedIds
+}
+
+function validateScheduleWindow(startsAt?: string | null, endsAt?: string | null) {
+  const normalizedStartsAt = normalizeOptionalDate(startsAt)
+  const normalizedEndsAt = normalizeOptionalDate(endsAt)
+
+  if (!normalizedStartsAt && !normalizedEndsAt) {
+    return {
+      ok: true as const,
+      startsAt: null,
+      endsAt: null,
+    }
+  }
+
+  if (!normalizedStartsAt || !normalizedEndsAt) {
+    return {
+      ok: false as const,
+      message: '开始时间和结束时间需要一起填写，不能只填一边。',
+      error: 'INCOMPLETE_SCHEDULE',
+    }
+  }
+
+  const startsAtMs = Date.parse(normalizedStartsAt)
+  const endsAtMs = Date.parse(normalizedEndsAt)
+
+  if (Number.isNaN(startsAtMs) || Number.isNaN(endsAtMs)) {
+    return {
+      ok: false as const,
+      message: '辩题时间格式不正确，请重新选择开始和结束时间。',
+      error: 'INVALID_SCHEDULE',
+    }
+  }
+
+  if (endsAtMs <= startsAtMs) {
+    return {
+      ok: false as const,
+      message: '结束时间必须晚于开始时间。',
+      error: 'INVALID_SCHEDULE_WINDOW',
+    }
+  }
+
+  return {
+    ok: true as const,
+    startsAt: new Date(startsAtMs).toISOString(),
+    endsAt: new Date(endsAtMs).toISOString(),
+  }
 }
 
 async function requireDebateTopicAdmin(): Promise<
@@ -104,10 +176,11 @@ async function requireDebateTopicAdmin(): Promise<
   }
 }
 
-function mapDebateTopic(row: RawRow): AdminDebateTopicSummary {
+function mapDebateTopic(row: RawRow, linkedIssueIds: string[]): AdminDebateTopicSummary {
   return {
     id: String(row.id ?? ''),
     issueId: String(row.issue_id ?? ''),
+    linkedIssueIds,
     title: toText(row.title),
     description: toText(row.description) || null,
     sortOrder: Number(row.sort_order ?? 0),
@@ -117,93 +190,86 @@ function mapDebateTopic(row: RawRow): AdminDebateTopicSummary {
   }
 }
 
-function normalizeTopicText(input?: string | null) {
-  return input?.trim() ?? ''
-}
-
-function normalizeTopicDescription(input?: string | null) {
-  const trimmed = input?.trim() ?? ''
-  return trimmed || null
-}
-
-function normalizeOptionalDate(input?: string | null) {
-  const trimmed = input?.trim() ?? ''
-  return trimmed || null
-}
-
-function validateScheduleWindow(startsAt?: string | null, endsAt?: string | null) {
-  const normalizedStartsAt = normalizeOptionalDate(startsAt)
-  const normalizedEndsAt = normalizeOptionalDate(endsAt)
-
-  if (!normalizedStartsAt && !normalizedEndsAt) {
-    return {
-      ok: true as const,
-      startsAt: null,
-      endsAt: null,
-    }
+async function getIssueMetas(issueIds: string[]) {
+  if (issueIds.length === 0) {
+    return []
   }
 
-  if (!normalizedStartsAt || !normalizedEndsAt) {
-    return {
-      ok: false as const,
-      message: '开始时间和结束时间需要一起填写，不能只填一边。',
-      error: 'INCOMPLETE_SCHEDULE',
-    }
-  }
-
-  const startsAtMs = Date.parse(normalizedStartsAt)
-  const endsAtMs = Date.parse(normalizedEndsAt)
-
-  if (Number.isNaN(startsAtMs) || Number.isNaN(endsAtMs)) {
-    return {
-      ok: false as const,
-      message: '辩题时间格式不正确，请重新选择开始和结束时间。',
-      error: 'INVALID_SCHEDULE',
-    }
-  }
-
-  if (endsAtMs <= startsAtMs) {
-    return {
-      ok: false as const,
-      message: '结束时间必须晚于开始时间。',
-      error: 'INVALID_SCHEDULE_WINDOW',
-    }
-  }
-
-  return {
-    ok: true as const,
-    startsAt: new Date(startsAtMs).toISOString(),
-    endsAt: new Date(endsAtMs).toISOString(),
-  }
-}
-
-async function getIssueMeta(issueId: string) {
   const adminClient = createAdminClient()
   const { data, error } = await adminClient
     .from('issues')
     .select('id, slug, label, title')
-    .eq('id', issueId)
-    .maybeSingle()
+    .in('id', issueIds)
 
   if (error) {
     throw error
   }
 
-  return (data as RawRow | null) ?? null
+  const issueMap = new Map<string, RawRow>()
+  for (const row of (data as RawRow[] | null) ?? []) {
+    issueMap.set(String(row.id ?? ''), row)
+  }
+
+  return issueIds.map((issueId) => issueMap.get(issueId)).filter((row): row is RawRow => Boolean(row))
 }
 
-function revalidateDebateAdminPaths(issueSlug: string | null) {
+async function getTopicLinkMap(topicIds: string[]) {
+  const linkMap = new Map<string, string[]>()
+
+  if (topicIds.length === 0) {
+    return linkMap
+  }
+
+  const adminClient = createAdminClient()
+  const { data, error } = await adminClient
+    .from('debate_topic_issue_links')
+    .select('debate_topic_id, issue_id')
+    .in('debate_topic_id', topicIds)
+
+  if (error) {
+    throw error
+  }
+
+  for (const row of (data as RawRow[] | null) ?? []) {
+    const topicId = String(row.debate_topic_id ?? '')
+    const issueId = String(row.issue_id ?? '')
+
+    if (!topicId || !issueId) {
+      continue
+    }
+
+    const linkedIssueIds = linkMap.get(topicId) ?? []
+    linkedIssueIds.push(issueId)
+    linkMap.set(topicId, linkedIssueIds)
+  }
+
+  return linkMap
+}
+
+function sortTopics(topics: AdminDebateTopicSummary[]) {
+  return [...topics].sort((left, right) => {
+    if (left.sortOrder !== right.sortOrder) {
+      return left.sortOrder - right.sortOrder
+    }
+
+    return left.createdAt.localeCompare(right.createdAt)
+  })
+}
+
+function revalidateDebateAdminPaths(issueSlugs: string[]) {
   revalidatePath('/')
   revalidatePath('/issues')
   revalidatePath('/ops-room')
   revalidatePath('/ops-room/articles')
 
-  if (!issueSlug) {
-    return
-  }
+  for (const issueSlug of issueSlugs) {
+    if (!issueSlug) {
+      continue
+    }
 
-  revalidatePath(`/issues/${issueSlug}`)
-  revalidatePath(`/issues/${issueSlug}/debate`)
+    revalidatePath(`/issues/${issueSlug}`)
+    revalidatePath(`/issues/${issueSlug}/debate`)
+  }
 }
 
 export async function getAdminDebateTopics(
@@ -215,7 +281,8 @@ export async function getAdminDebateTopics(
       return adminAccess.result
     }
 
-    if (!issueId) {
+    const normalizedIssueId = issueId.trim()
+    if (!normalizedIssueId) {
       return {
         success: false,
         message: '缺少期刊 ID。',
@@ -224,25 +291,55 @@ export async function getAdminDebateTopics(
     }
 
     const adminClient = createAdminClient()
-    const { data, error } = await adminClient
-      .from('debate_topics')
-      .select('id, issue_id, title, description, sort_order, starts_at, ends_at, created_at')
-      .eq('issue_id', issueId)
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: true })
+    const { data: linkRows, error: linkError } = await adminClient
+      .from('debate_topic_issue_links')
+      .select('debate_topic_id')
+      .eq('issue_id', normalizedIssueId)
 
-    if (error) {
+    if (linkError) {
       return {
         success: false,
         message: '获取辩题列表失败。',
-        error: error.message,
+        error: linkError.message,
       }
     }
+
+    const topicIds = ((linkRows as RawRow[] | null) ?? [])
+      .map((row) => String(row.debate_topic_id ?? ''))
+      .filter(Boolean)
+
+    if (topicIds.length === 0) {
+      return {
+        success: true,
+        message: '获取成功。',
+        data: [],
+      }
+    }
+
+    const [{ data: topicRows, error: topicError }, linkMap] = await Promise.all([
+      adminClient
+        .from('debate_topics')
+        .select('id, issue_id, title, description, sort_order, starts_at, ends_at, created_at')
+        .in('id', topicIds),
+      getTopicLinkMap(topicIds),
+    ])
+
+    if (topicError) {
+      return {
+        success: false,
+        message: '获取辩题列表失败。',
+        error: topicError.message,
+      }
+    }
+
+    const topics = ((topicRows as RawRow[] | null) ?? []).map((row) =>
+      mapDebateTopic(row, linkMap.get(String(row.id ?? '')) ?? [])
+    )
 
     return {
       success: true,
       message: '获取成功。',
-      data: (data ?? []).map((row) => mapDebateTopic(row as RawRow)),
+      data: sortTopics(topics),
     }
   } catch (error) {
     console.error('[getAdminDebateTopics] Unexpected error:', error)
@@ -263,23 +360,22 @@ export async function createAdminDebateTopic(
       return adminAccess.result
     }
 
-    const issueId = input.issueId.trim()
     const title = normalizeTopicText(input.title)
-    const description = normalizeTopicDescription(input.description)
-
-    if (!issueId) {
-      return {
-        success: false,
-        message: '请选择要绑定的期刊。',
-        error: 'MISSING_ISSUE_ID',
-      }
-    }
+    const issueIds = normalizeIssueIds(input.issueIds)
 
     if (!title) {
       return {
         success: false,
         message: '请填写辩题标题。',
         error: 'MISSING_TITLE',
+      }
+    }
+
+    if (issueIds.length === 0) {
+      return {
+        success: false,
+        message: '请至少勾选一个显示期刊。',
+        error: 'MISSING_VISIBLE_ISSUES',
       }
     }
 
@@ -292,20 +388,21 @@ export async function createAdminDebateTopic(
       }
     }
 
-    const issue = await getIssueMeta(issueId)
-    if (!issue) {
+    const issues = await getIssueMetas(issueIds)
+    if (issues.length !== issueIds.length) {
       return {
         success: false,
-        message: '没有找到对应的期刊。',
-        error: 'ISSUE_NOT_FOUND',
+        message: '有部分期刊不存在，无法保存这个辩题。',
+        error: 'INVALID_ISSUE_IDS',
       }
     }
 
+    const ownerIssueId = issueIds[0]
     const adminClient = createAdminClient()
     const { data: maxRow, error: maxRowError } = await adminClient
       .from('debate_topics')
       .select('sort_order')
-      .eq('issue_id', issueId)
+      .eq('issue_id', ownerIssueId)
       .order('sort_order', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -313,19 +410,19 @@ export async function createAdminDebateTopic(
     if (maxRowError) {
       return {
         success: false,
-        message: '读取当前期刊辩题排序失败。',
+        message: '读取辩题排序失败。',
         error: maxRowError.message,
       }
     }
 
     const nextSortOrder = (maxRow ? Number(maxRow.sort_order ?? 0) : 0) + 1
 
-    const { data, error } = await adminClient
+    const { data: topic, error: insertTopicError } = await adminClient
       .from('debate_topics')
       .insert({
-        issue_id: issueId,
+        issue_id: ownerIssueId,
         title,
-        description,
+        description: null,
         sort_order: nextSortOrder,
         starts_at: schedule.startsAt,
         ends_at: schedule.endsAt,
@@ -333,21 +430,36 @@ export async function createAdminDebateTopic(
       .select('id, issue_id, title, description, sort_order, starts_at, ends_at, created_at')
       .single()
 
-    if (error || !data) {
-      console.error('[createAdminDebateTopic] Failed to insert topic:', error)
+    if (insertTopicError || !topic) {
+      console.error('[createAdminDebateTopic] Failed to insert topic:', insertTopicError)
       return {
         success: false,
         message: '创建辩题失败，请检查 Supabase 配置。',
-        error: error?.message ?? 'INSERT_FAILED',
+        error: insertTopicError?.message ?? 'INSERT_FAILED',
       }
     }
 
-    revalidateDebateAdminPaths(toText(issue.slug) || null)
+    const topicId = String((topic as RawRow).id ?? '')
+    const { error: linkError } = await adminClient
+      .from('debate_topic_issue_links')
+      .insert(issueIds.map((linkedIssueId) => ({ debate_topic_id: topicId, issue_id: linkedIssueId })))
+
+    if (linkError) {
+      await adminClient.from('debate_topics').delete().eq('id', topicId)
+
+      return {
+        success: false,
+        message: '辩题已创建草稿，但关联期刊失败，已自动回滚。',
+        error: linkError.message,
+      }
+    }
+
+    revalidateDebateAdminPaths(issues.map((issue) => toText(issue.slug)).filter(Boolean))
 
     return {
       success: true,
-      message: `已为 ${toText(issue.label) || '该期刊'} 新增辩题。`,
-      data: mapDebateTopic(data as RawRow),
+      message: '辩题已创建，并同步到选中的期刊。',
+      data: mapDebateTopic(topic as RawRow, issueIds),
     }
   } catch (error) {
     console.error('[createAdminDebateTopic] Unexpected error:', error)
@@ -370,7 +482,7 @@ export async function updateAdminDebateTopic(
 
     const topicId = input.topicId.trim()
     const title = normalizeTopicText(input.title)
-    const description = normalizeTopicDescription(input.description)
+    const issueIds = normalizeIssueIds(input.issueIds)
 
     if (!topicId) {
       return {
@@ -388,6 +500,14 @@ export async function updateAdminDebateTopic(
       }
     }
 
+    if (issueIds.length === 0) {
+      return {
+        success: false,
+        message: '请至少保留一个显示期刊。',
+        error: 'MISSING_VISIBLE_ISSUES',
+      }
+    }
+
     const schedule = validateScheduleWindow(input.startsAt, input.endsAt)
     if (!schedule.ok) {
       return {
@@ -398,17 +518,28 @@ export async function updateAdminDebateTopic(
     }
 
     const adminClient = createAdminClient()
-    const { data: existingTopic, error: existingTopicError } = await adminClient
-      .from('debate_topics')
-      .select('id, issue_id')
-      .eq('id', topicId)
-      .maybeSingle()
+    const [{ data: existingTopic, error: existingTopicError }, { data: existingLinkRows, error: existingLinksError }] =
+      await Promise.all([
+        adminClient.from('debate_topics').select('id, issue_id').eq('id', topicId).maybeSingle(),
+        adminClient
+          .from('debate_topic_issue_links')
+          .select('issue_id')
+          .eq('debate_topic_id', topicId),
+      ])
 
     if (existingTopicError) {
       return {
         success: false,
         message: '读取辩题信息失败。',
         error: existingTopicError.message,
+      }
+    }
+
+    if (existingLinksError) {
+      return {
+        success: false,
+        message: '读取辩题所属期刊失败。',
+        error: existingLinksError.message,
       }
     }
 
@@ -420,13 +551,45 @@ export async function updateAdminDebateTopic(
       }
     }
 
-    const issue = await getIssueMeta(String(existingTopic.issue_id ?? ''))
+    const oldIssueIds = ((existingLinkRows as RawRow[] | null) ?? [])
+      .map((row) => String(row.issue_id ?? ''))
+      .filter(Boolean)
+    const allIssueIdsForRevalidation = normalizeIssueIds([...oldIssueIds, ...issueIds])
+    const issues = await getIssueMetas(allIssueIdsForRevalidation)
 
-    const { data, error } = await adminClient
+    if (issues.length !== allIssueIdsForRevalidation.length) {
+      return {
+        success: false,
+        message: '有部分期刊不存在，无法保存这个辩题。',
+        error: 'INVALID_ISSUE_IDS',
+      }
+    }
+
+    const ownerIssueId = issueIds[0]
+    const { error: upsertLinksError } = await adminClient
+      .from('debate_topic_issue_links')
+      .upsert(
+        issueIds.map((linkedIssueId) => ({
+          debate_topic_id: topicId,
+          issue_id: linkedIssueId,
+        })),
+        { onConflict: 'debate_topic_id,issue_id' }
+      )
+
+    if (upsertLinksError) {
+      return {
+        success: false,
+        message: '保存辩题的期刊关联失败。',
+        error: upsertLinksError.message,
+      }
+    }
+
+    const { data: topic, error: updateTopicError } = await adminClient
       .from('debate_topics')
       .update({
+        issue_id: ownerIssueId,
         title,
-        description,
+        description: null,
         starts_at: schedule.startsAt,
         ends_at: schedule.endsAt,
       })
@@ -434,21 +597,38 @@ export async function updateAdminDebateTopic(
       .select('id, issue_id, title, description, sort_order, starts_at, ends_at, created_at')
       .single()
 
-    if (error || !data) {
-      console.error('[updateAdminDebateTopic] Failed to update topic:', error)
+    if (updateTopicError || !topic) {
+      console.error('[updateAdminDebateTopic] Failed to update topic:', updateTopicError)
       return {
         success: false,
         message: '保存辩题失败。',
-        error: error?.message ?? 'UPDATE_FAILED',
+        error: updateTopicError?.message ?? 'UPDATE_FAILED',
       }
     }
 
-    revalidateDebateAdminPaths(toText(issue?.slug) || null)
+    const removedIssueIds = oldIssueIds.filter((existingIssueId) => !issueIds.includes(existingIssueId))
+    if (removedIssueIds.length > 0) {
+      const { error: deleteLinksError } = await adminClient
+        .from('debate_topic_issue_links')
+        .delete()
+        .eq('debate_topic_id', topicId)
+        .in('issue_id', removedIssueIds)
+
+      if (deleteLinksError) {
+        return {
+          success: false,
+          message: '辩题已更新，但移除旧期刊关联失败，请重试一次。',
+          error: deleteLinksError.message,
+        }
+      }
+    }
+
+    revalidateDebateAdminPaths(issues.map((issue) => toText(issue.slug)).filter(Boolean))
 
     return {
       success: true,
       message: '辩题已更新。',
-      data: mapDebateTopic(data as RawRow),
+      data: mapDebateTopic(topic as RawRow, issueIds),
     }
   } catch (error) {
     console.error('[updateAdminDebateTopic] Unexpected error:', error)
@@ -469,7 +649,8 @@ export async function deleteAdminDebateTopic(
       return adminAccess.result
     }
 
-    if (!topicId) {
+    const normalizedTopicId = topicId.trim()
+    if (!normalizedTopicId) {
       return {
         success: false,
         message: '缺少辩题 ID。',
@@ -478,17 +659,31 @@ export async function deleteAdminDebateTopic(
     }
 
     const adminClient = createAdminClient()
-    const { data: topic, error: topicError } = await adminClient
-      .from('debate_topics')
-      .select('id, issue_id, title')
-      .eq('id', topicId)
-      .maybeSingle()
+    const [{ data: topic, error: topicError }, { data: linkRows, error: linkError }] = await Promise.all([
+      adminClient
+        .from('debate_topics')
+        .select('id, issue_id, title')
+        .eq('id', normalizedTopicId)
+        .maybeSingle(),
+      adminClient
+        .from('debate_topic_issue_links')
+        .select('issue_id')
+        .eq('debate_topic_id', normalizedTopicId),
+    ])
 
     if (topicError) {
       return {
         success: false,
         message: '读取辩题信息失败。',
         error: topicError.message,
+      }
+    }
+
+    if (linkError) {
+      return {
+        success: false,
+        message: '读取辩题所属期刊失败。',
+        error: linkError.message,
       }
     }
 
@@ -500,12 +695,15 @@ export async function deleteAdminDebateTopic(
       }
     }
 
-    const issue = await getIssueMeta(String(topic.issue_id ?? ''))
+    const issueIds = ((linkRows as RawRow[] | null) ?? [])
+      .map((row) => String(row.issue_id ?? ''))
+      .filter(Boolean)
+    const issues = await getIssueMetas(issueIds)
 
     const { data: commentRows, error: commentFetchError } = await adminClient
       .from('debate_comments')
       .select('id')
-      .eq('topic_id', topicId)
+      .eq('topic_id', normalizedTopicId)
 
     if (commentFetchError) {
       return {
@@ -541,7 +739,7 @@ export async function deleteAdminDebateTopic(
     const { error: deleteTopicError } = await adminClient
       .from('debate_topics')
       .delete()
-      .eq('id', topicId)
+      .eq('id', normalizedTopicId)
 
     if (deleteTopicError) {
       return {
@@ -551,7 +749,7 @@ export async function deleteAdminDebateTopic(
       }
     }
 
-    revalidateDebateAdminPaths(toText(issue?.slug) || null)
+    revalidateDebateAdminPaths(issues.map((issue) => toText(issue.slug)).filter(Boolean))
 
     return {
       success: true,
