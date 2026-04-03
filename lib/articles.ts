@@ -110,6 +110,21 @@ export function normalizeCategory(category: string): string {
   return category;
 }
 
+/** 期刊专题页 `/issues/[slug]` 分栏大标题（与导航、栏目独立页、文章内文小标题无关） */
+const ISSUE_PAGE_CATEGORY_HEADINGS: Record<string, string> = {
+  有话慢谈: "有话慢谈-随笔",
+  人间剧场: "人间剧场-小说",
+  胡说八道: "胡说八道-杂谈",
+  三行两句: "三行两句-诗歌",
+  见字如面: "见字如面-书信",
+  画里有话: "画里有话-漫画",
+};
+
+export function getIssuePageCategoryHeading(category: string): string {
+  const key = normalizeCategory(category);
+  return ISSUE_PAGE_CATEGORY_HEADINGS[key] ?? category;
+}
+
 function getCategoryAliases(category: string) {
   if (category === "有话慢谈" || category === "有话漫谈") {
     return ["有话慢谈", "有话漫谈"];

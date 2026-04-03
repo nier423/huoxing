@@ -6,9 +6,10 @@ import Navbar from "@/components/Navbar";
 import {
   getArticlesByIssue,
   getIssueBySlug,
+  getIssuePageCategoryHeading,
   groupArticlesByCategory,
 } from "@/lib/articles";
-import { getIssueDisplayTitle } from "@/lib/issue-display";
+import { getIssueDisplayTitle, getIssueNumberFromLabel } from "@/lib/issue-display";
 
 export const revalidate = 60;
 
@@ -45,6 +46,8 @@ export default async function IssueDetailPage({ params }: PageProps) {
 
   const articles = await getArticlesByIssue(issue.id);
   const groups = groupArticlesByCategory(articles);
+  const issueNumber = getIssueNumberFromLabel(issue.label);
+  const showDrawing = issueNumber === 3;
 
   return (
     <main className="min-h-screen bg-[#F7F5F0]">
@@ -79,6 +82,14 @@ export default async function IssueDetailPage({ params }: PageProps) {
                 >
                   进入辩论
                 </Link>
+                {showDrawing ? (
+                  <Link
+                    href={`/issues/${issue.slug}/drawing`}
+                    className="inline-flex items-center rounded-full border border-[#D7CCC8] px-5 py-2 transition-colors hover:border-[#A1887F] hover:text-[#A1887F]"
+                  >
+                    画里话外
+                  </Link>
+                ) : null}
                 <Link
                   href="/issues"
                   className="inline-flex items-center rounded-full border border-[#D7CCC8] px-5 py-2 transition-colors hover:border-[#A1887F] hover:text-[#A1887F]"
@@ -97,16 +108,23 @@ export default async function IssueDetailPage({ params }: PageProps) {
         ) : (
           <div className="space-y-16">
             {groups.map(([category, categoryArticles]) => (
-              <section key={category} className="space-y-8">
+              <section key={category} id={category} className="scroll-mt-28 space-y-8">
                 <div className="flex items-center gap-3 border-b border-[#DDD6CE] pb-4">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#A1887F] opacity-60" />
-                  <h2 className="font-youyou text-3xl text-[#2C2C2C]">{category}</h2>
+                  <h2 className="font-youyou text-3xl text-[#2C2C2C]">
+                    {getIssuePageCategoryHeading(category)}
+                  </h2>
                   <span className="text-sm text-[#8D8D8D]">{categoryArticles.length} 篇</span>
                 </div>
 
                 <div className="grid grid-cols-1 gap-x-12 gap-y-20 md:grid-cols-2">
                   {categoryArticles.map((article) => (
-                    <ArticleCard key={article.id} article={article} showReadMore />
+                    <ArticleCard
+                      key={article.id}
+                      article={article}
+                      showReadMore
+                      extendedCategoryLabel
+                    />
                   ))}
                 </div>
               </section>

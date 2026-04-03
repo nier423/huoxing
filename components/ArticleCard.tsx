@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, MessageCircle } from "lucide-react";
 import type { Article } from "@/lib/articles";
+import { getIssuePageCategoryHeading } from "@/lib/articles";
 import IssueBadge from "@/components/IssueBadge";
 
 interface ArticleCardProps {
   article: Article;
   showReadMore?: boolean;
+  /** 为 true 时顶栏栏目名与期刊页分栏标题一致（如 有话慢谈-随笔） */
+  extendedCategoryLabel?: boolean;
 }
 
 function formatDate(input: string): string {
@@ -25,13 +28,18 @@ function formatDate(input: string): string {
 export default function ArticleCard({
   article,
   showReadMore = false,
+  extendedCategoryLabel = false,
 }: ArticleCardProps) {
+  const categoryLabel = extendedCategoryLabel
+    ? getIssuePageCategoryHeading(article.category)
+    : article.category;
+
   return (
     <article className="group relative flex flex-col gap-8 rounded-3xl p-6 md:p-8 -mx-6 md:-mx-8 transition-all duration-700 hover:bg-[#FDFCF9] hover:shadow-[0_20px_60px_rgba(0,0,0,0.03)] hover:-translate-y-2 ring-1 ring-transparent hover:ring-[#E3D8D0]/40">
       <div className="flex items-center justify-between border-b border-[#E3D8D0]/40 pb-4 text-xs font-medium uppercase tracking-[0.3em] text-[#9E9E9E]">
         <div className="flex items-center gap-4">
           <span className="h-1.5 w-1.5 rounded-full bg-[#CFAF9D] shadow-sm transform group-hover:scale-150 transition-transform duration-500" />
-          <span className="text-[#A58B7E] tracking-[0.4em]">{article.category}</span>
+          <span className="text-[#A58B7E] tracking-[0.4em]">{categoryLabel}</span>
           <IssueBadge label={article.issue?.label} />
         </div>
         <span className="font-serif tracking-[0.1em]">{formatDate(article.publishedAt)}</span>
