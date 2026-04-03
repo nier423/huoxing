@@ -13,7 +13,7 @@ interface IssueCredit {
 }
 
 export const CREDITS_DATA: Record<string, IssueCredit> = {
-  "vol-3": {
+  "v3": {
     title: "第三看 《月经》制作团队",
     teams: [
       { department: "站长", names: "Ray" },
@@ -79,10 +79,10 @@ export default function IssueCredits({ issueSlug }: IssueCreditsProps) {
               key={team.department}
               className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-6 group"
             >
-              <div className="w-20 shrink-0 text-left sm:text-right">
-                <span className="text-[#8D6E63] font-sans text-xs md:text-sm tracking-[0.2em] font-medium opacity-80 uppercase relative inline-block">
+              <div className="w-16 sm:w-20 shrink-0 text-left sm:text-right">
+                <span className="text-[#8D6E63] font-serif text-sm md:text-base tracking-[0.15em] font-medium opacity-90 relative inline-block">
                   {team.department}
-                  <span className="hidden sm:inline-block absolute -right-4 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#D7CCC8]/60" />
+                  <span className="hidden sm:inline-block absolute -right-3 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-[#A1887F]/50" />
                 </span>
               </div>
               <div className="flex-1 text-[#5C4D43] text-[0.95rem] md:text-base leading-relaxed pl-2 border-l-[2px] border-dotted border-[#D7CCC8]/40 sm:border-none sm:pl-0">
