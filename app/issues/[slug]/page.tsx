@@ -60,7 +60,7 @@ export default async function IssueDetailPage({ params }: PageProps) {
       title: drawing.title,
       excerpt: drawing.description ?? "画里话外，点击查看漫画。",
       content: "",
-      author: drawing.authorName ?? "",
+      author: drawing.authorHandle ? `小红书ID：${drawing.authorHandle}` : (drawing.authorName ?? "星火编辑部"),
       category: "画里话外",
       publishedAt: drawing.createdAt ?? new Date().toISOString(),
       viewCount: 0,
