@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getIssueNumberFromLabel } from "@/lib/issue-display";
 
 export interface DrawingComment {
   id: string;
@@ -99,24 +98,16 @@ export async function submitDrawingComment(
     };
   }
 
-  const { data: issueRow, error: issueError } = await supabase
-    .from("issues")
-    .select("id, label")
-    .eq("id", issueId)
+  const { data: drawingRow, error: drawingError } = await supabase
+    .from("issue_drawings")
+    .select("id")
+    .eq("issue_id", issueId)
     .maybeSingle();
 
-  if (issueError || !issueRow) {
+  if (drawingError || !drawingRow) {
     return {
       success: false,
-      message: "期刊不存在",
-    };
-  }
-
-  const label = toText((issueRow as RawRow).label);
-  if (getIssueNumberFromLabel(label) !== 3) {
-    return {
-      success: false,
-      message: "画里话外仅对第三看开放",
+      message: "画里有话暂未开放",
     };
   }
 

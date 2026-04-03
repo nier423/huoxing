@@ -6,8 +6,7 @@ import DrawingImageSwiper from "@/components/drawing/DrawingImageSwiper";
 import Navbar from "@/components/Navbar";
 import { fetchDrawingComments } from "@/app/actions/drawing-comments";
 import { getIssueBySlug } from "@/lib/articles";
-import { DRAWING_GALLERY_IMAGE_URLS } from "@/lib/drawing-gallery";
-import { getIssueNumberFromLabel } from "@/lib/issue-display";
+import { getIssueDrawingByIssueId } from "@/lib/issue-drawings";
 import { createClient } from "@/lib/supabase/server";
 
 export const revalidate = 60;
@@ -26,16 +25,19 @@ export default async function IssueDrawingPage({ params }: PageProps) {
     notFound();
   }
 
-  if (getIssueNumberFromLabel(issue.label) !== 3) {
+  const drawing = await getIssueDrawingByIssueId(issue.id);
+
+  if (!drawing) {
     notFound();
   }
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const initialComments = await fetchDrawingComments(issue.id);
+  const [
+    {
+      data: { user },
+    },
+    initialComments,
+  ] = await Promise.all([supabase.auth.getUser(), fetchDrawingComments(issue.id)]);
 
   return (
     <main className="min-h-screen bg-[#F7F5F0]">
@@ -53,13 +55,28 @@ export default async function IssueDrawingPage({ params }: PageProps) {
         <div className="mb-8 space-y-8">
           <header className="space-y-2">
             <h1 className="font-youyou text-2xl leading-snug text-[#2C2C2C] md:text-3xl lg:text-[2rem]">
-              月经六周年：只想感谢布洛芬和花掉的六千块
+              {drawing.title}
             </h1>   
+            {drawing.description ? (
+              <p className="max-w-3xl text-sm leading-7 text-[#6C665F] md:text-base">
+                {drawing.description}
+              </p>
+            ) : null}
           </header>
-          <DrawingImageSwiper images={DRAWING_GALLERY_IMAGE_URLS} />
-          <p className="text-sm text-[#9E9E9E] md:text-[0.95rem]">
-              小红书ID：我是鹿人甲
-            </p>
+          <DrawingImageSwiper
+            images={drawing.images.map((image) => ({
+              src: image.imageUrl,
+              alt: image.altText,
+              caption: image.caption,
+            }))}
+            altPrefix={drawing.title}
+          />
+          {drawing.authorName || drawing.authorHandle ? (
+            <div className="space-y-1 text-sm text-[#9E9E9E] md:text-[0.95rem]">
+              {drawing.authorName ? <p>作者：{drawing.authorName}</p> : null}
+              {drawing.authorHandle ? <p>小红书ID：{drawing.authorHandle}</p> : null}
+            </div>
+          ) : null}
         </div>
 
         <DrawingCommentSection

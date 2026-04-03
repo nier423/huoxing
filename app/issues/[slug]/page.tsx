@@ -9,7 +9,8 @@ import {
   getIssuePageCategoryHeading,
   groupArticlesByCategory,
 } from "@/lib/articles";
-import { getIssueDisplayTitle, getIssueNumberFromLabel } from "@/lib/issue-display";
+import { hasIssueDrawing } from "@/lib/issue-drawings";
+import { getIssueDisplayTitle } from "@/lib/issue-display";
 
 export const revalidate = 60;
 
@@ -44,10 +45,11 @@ export default async function IssueDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const articles = await getArticlesByIssue(issue.id);
+  const [articles, showDrawing] = await Promise.all([
+    getArticlesByIssue(issue.id),
+    hasIssueDrawing(issue.id),
+  ]);
   const groups = groupArticlesByCategory(articles);
-  const issueNumber = getIssueNumberFromLabel(issue.label);
-  const showDrawing = issueNumber === 3;
 
   return (
     <main className="min-h-screen bg-[#F7F5F0]">

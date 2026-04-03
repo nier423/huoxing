@@ -18,6 +18,7 @@ const navItems = [
   { name: "胡说八道", href: "/nonsense" },
   { name: "三行两句", href: "/poems" },
   { name: "见字如面", href: "/letters" },
+  { name: "画里有话", href: "/drawing" },
 ];
 
 const utilityItems = [
