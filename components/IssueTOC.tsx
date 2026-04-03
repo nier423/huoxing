@@ -1,5 +1,6 @@
 import { Paperclip } from "lucide-react";
 import type { TOCSection } from "@/lib/issue-toc";
+import Link from "next/link";
 
 /* ── Visual presets cycled per card ─────────────────────── */
 
@@ -96,32 +97,46 @@ function SectionCard({
       {/* Article list */}
       <div className="relative z-10 mt-2">
         <ul className="space-y-0 pl-1">
-          {section.items.map((item) => (
-            <li
-              key={item.id}
-              className="group/item py-1.5 min-h-[32px]"
-            >
-              {/* Desktop: horizontal with dotted line */}
-              <div className="hidden md:flex items-end justify-between gap-3">
-                <span className="text-[1rem] leading-relaxed text-[#5C4D43] transition-colors duration-200 group-hover/item:text-[#241A14]">
-                  {item.title}
-                </span>
-                <span className="flex-1 border-b-2 border-dotted border-[#D7CCC8]/60 mb-[6px] mx-2 min-w-[2rem] group-hover/item:border-[#8D6E63]/40 transition-colors duration-200" />
-                <span className="flex-shrink-0 text-[0.9rem] tracking-wide text-[#A08979] italic">
-                  {item.author}
-                </span>
-              </div>
-              {/* Mobile: title on top, author below right-aligned */}
-              <div className="md:hidden">
-                <span className="text-[0.95rem] leading-relaxed text-[#5C4D43] transition-colors duration-200 group-hover/item:text-[#241A14] block">
-                  {item.title}
-                </span>
-                <span className="text-[0.8rem] tracking-wide text-[#A08979] italic block text-right mt-0.5">
-                  —— {item.author}
-                </span>
-              </div>
-            </li>
-          ))}
+          {section.items.map((item) => {
+            const innerContent = (
+              <>
+                {/* Desktop: horizontal with dotted line */}
+                <div className="hidden md:flex items-end justify-between gap-3">
+                  <span className="text-[1rem] leading-relaxed text-[#5C4D43] transition-colors duration-200 group-hover/item:text-[#241A14]">
+                    {item.title}
+                  </span>
+                  <span className="flex-1 border-b-2 border-dotted border-[#D7CCC8]/60 mb-[6px] mx-2 min-w-[2rem] group-hover/item:border-[#8D6E63]/40 transition-colors duration-200" />
+                  <span className="flex-shrink-0 text-[0.9rem] tracking-wide text-[#A08979] italic">
+                    {item.author}
+                  </span>
+                </div>
+                {/* Mobile: title on top, author below right-aligned */}
+                <div className="md:hidden">
+                  <span className="text-[0.95rem] leading-relaxed text-[#5C4D43] transition-colors duration-200 group-hover/item:text-[#241A14] block">
+                    {item.title}
+                  </span>
+                  <span className="text-[0.8rem] tracking-wide text-[#A08979] italic block text-right mt-0.5">
+                    —— {item.author}
+                  </span>
+                </div>
+              </>
+            );
+
+            return (
+              <li
+                key={item.id}
+                className="group/item py-1.5 min-h-[32px]"
+              >
+                {item.articleSlug ? (
+                  <Link href={`/articles/${item.articleSlug}`} className="block w-full">
+                    {innerContent}
+                  </Link>
+                ) : (
+                  <div className="w-full">{innerContent}</div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>

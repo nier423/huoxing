@@ -6,6 +6,7 @@ export interface TOCItem {
   title: string;
   author: string;
   sortOrder: number;
+  articleSlug?: string;
 }
 
 export interface TOCSection {
@@ -79,6 +80,19 @@ export async function getIssueTOC(issueId: string): Promise<TOCSection[]> {
     console.error("[getIssueTOC] 获取目录条目失败:", itemError);
   }
 
+  // 2.5 Fetch articles for this issue to map their slugs by title
+  const { data: articles } = await supabase
+    .from("articles")
+    .select("title, slug")
+    .eq("issue_id", issueId);
+
+  const articleMap = new Map<string, string>();
+  for (const a of (articles as Array<{ title?: string; slug?: string }> | null) ?? []) {
+    if (a.title && a.slug) {
+      articleMap.set(a.title.trim(), a.slug);
+    }
+  }
+
   // 3. Group items by section_id
   const itemsBySectionId = new Map<string, TOCItem[]>();
 
@@ -89,11 +103,13 @@ export async function getIssueTOC(issueId: string): Promise<TOCSection[]> {
       continue;
     }
 
+    const title = toText(row.title);
     const item: TOCItem = {
       id: String(row.id ?? ""),
-      title: toText(row.title),
+      title,
       author: toText(row.author),
       sortOrder: Number(row.sort_order ?? 0),
+      articleSlug: articleMap.get(title.trim()),
     };
 
     const items = itemsBySectionId.get(sectionId) ?? [];
