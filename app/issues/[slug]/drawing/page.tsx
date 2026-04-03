@@ -54,12 +54,12 @@ export default async function IssueDrawingPage({ params }: PageProps) {
           <header className="space-y-2">
             <h1 className="font-youyou text-2xl leading-snug text-[#2C2C2C] md:text-3xl lg:text-[2rem]">
               月经六周年：只想感谢布洛芬和花掉的六千块
-            </h1>
-            <p className="text-sm text-[#9E9E9E] md:text-[0.95rem]">
-              作者：我是路人甲
-            </p>
+            </h1>   
           </header>
           <DrawingImageSwiper images={DRAWING_GALLERY_IMAGE_URLS} />
+          <p className="text-sm text-[#9E9E9E] md:text-[0.95rem]">
+              小红书ID：我是鹿人甲
+            </p>
         </div>
 
         <DrawingCommentSection
