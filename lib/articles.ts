@@ -25,6 +25,7 @@ export interface Article {
   viewCount: number;
   echoCount: number;
   issue: Issue | null;
+  customHref?: string;
 }
 
 export const CATEGORY_ORDER = [
