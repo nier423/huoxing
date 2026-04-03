@@ -7,6 +7,7 @@ export interface TOCItem {
   author: string;
   sortOrder: number;
   articleSlug?: string;
+  customHref?: string;
 }
 
 export interface TOCSection {
@@ -58,6 +59,9 @@ export async function getIssueTOC(issueId: string): Promise<TOCSection[]> {
     .eq("issue_id", issueId)
     .order("sort_order", { ascending: true });
 
+  const { data: issueRow } = await supabase.from("issues").select("slug").eq("id", issueId).single();
+  const issueSlug = issueRow?.slug;
+
   if (secError || !sectionRows || sectionRows.length === 0) {
     if (secError) {
       console.error("[getIssueTOC] 获取目录栏目失败:", secError);
@@ -104,12 +108,24 @@ export async function getIssueTOC(issueId: string): Promise<TOCSection[]> {
     }
 
     const title = toText(row.title);
+    
+    let customHref: string | undefined;
+    const sectionRow = (sectionRows as RawSectionRow[]).find(s => s.id === sectionId);
+    const displayName = sectionRow ? toText(sectionRow.display_name) : "";
+    
+    if (displayName.includes("漫画") || displayName.includes("画里有话")) {
+      customHref = issueSlug ? `/issues/${issueSlug}/drawing` : "/drawing";
+    } else if (displayName.includes("辩题") || displayName.includes("以辩会友")) {
+      customHref = issueSlug ? `/issues/${issueSlug}/debate` : "/debate";
+    }
+
     const item: TOCItem = {
       id: String(row.id ?? ""),
       title,
       author: toText(row.author),
       sortOrder: Number(row.sort_order ?? 0),
       articleSlug: articleMap.get(title.trim()),
+      customHref,
     };
 
     const items = itemsBySectionId.get(sectionId) ?? [];

@@ -127,7 +127,11 @@ function SectionCard({
                 key={item.id}
                 className="group/item py-1.5 min-h-[32px]"
               >
-                {item.articleSlug ? (
+                {item.customHref ? (
+                  <Link href={item.customHref} className="block w-full">
+                    {innerContent}
+                  </Link>
+                ) : item.articleSlug ? (
                   <Link href={`/articles/${item.articleSlug}`} className="block w-full">
                     {innerContent}
                   </Link>
