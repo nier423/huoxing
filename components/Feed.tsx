@@ -5,6 +5,7 @@ import type { TOCSection } from "@/lib/issue-toc";
 import HomeDebateEntryRail from "@/components/debate/HomeDebateEntryRail";
 import IssueBadge from "@/components/IssueBadge";
 import IssueTOC from "@/components/IssueTOC";
+import IssueCredits from "@/components/IssueCredits";
 import { getIssueDisplayTitle } from "@/lib/issue-display";
 
 interface FeedProps {
@@ -79,8 +80,9 @@ export default function Feed({ issue = null, debateEntries = [], tocSections = [
         ) : null}
 
         {tocSections.length > 0 ? (
-          <div className="border-t border-[#EEE4D8] pt-10 opacity-0 animate-[fadeInUp_0.8s_ease-out_0.7s_forwards] md:pt-12">
+          <div className="border-t border-[#EEE4D8] pt-10 opacity-0 animate-[fadeInUp_0.8s_ease-out_0.7s_forwards] md:pt-12 pb-8">
             <IssueTOC sections={tocSections} issueLabel={issue?.label} />
+            {issue?.slug && <IssueCredits issueSlug={issue.slug} />}
           </div>
         ) : null}
       </div>
