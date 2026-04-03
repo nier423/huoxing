@@ -30,9 +30,23 @@ export default function DrawingImageSwiper({
     if (!el) return;
     const { scrollLeft, scrollWidth, clientWidth } = el;
     const epsilon = 4;
+
     setCanPrev(scrollLeft > epsilon);
+
+    if (images.length <= 1) {
+      setCanNext(false);
+      return;
+    }
+
+    // 图片未加载或未撑开横向宽度时，scrollWidth ≈ clientWidth，不能误判为「已到底」
+    const hasOverflow = scrollWidth - clientWidth > epsilon;
+    if (!hasOverflow) {
+      setCanNext(true);
+      return;
+    }
+
     setCanNext(scrollLeft < scrollWidth - clientWidth - epsilon);
-  }, []);
+  }, [images.length]);
 
   useEffect(() => {
     updateScrollState();
@@ -40,9 +54,14 @@ export default function DrawingImageSwiper({
     if (!el) return;
     el.addEventListener("scroll", updateScrollState, { passive: true });
     window.addEventListener("resize", updateScrollState);
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(() => updateScrollState());
+    });
+    ro.observe(el);
     return () => {
       el.removeEventListener("scroll", updateScrollState);
       window.removeEventListener("resize", updateScrollState);
+      ro.disconnect();
     };
   }, [images.length, updateScrollState]);
 
@@ -108,6 +127,9 @@ export default function DrawingImageSwiper({
                     className="block h-auto max-h-[85vh] w-full max-w-[min(92vw,520px)] object-contain"
                     loading={index === 0 ? "eager" : "lazy"}
                     decoding="async"
+                    onLoad={() => {
+                      requestAnimationFrame(() => updateScrollState());
+                    }}
                   />
                 </div>
               </div>
