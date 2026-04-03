@@ -47,7 +47,7 @@ export default function ArticleCard({
 
       <div className="space-y-6">
         <h2 className="flex items-start justify-between gap-6 font-youyou text-[1.75rem] md:text-[2.25rem] lg:text-[2.5rem] leading-[1.3] text-[#2C2C2C] transition-colors duration-500 group-hover:text-[#A1887F]">
-          <Link href={`/articles/${article.slug}`} className="before:absolute before:inset-0">
+          <Link href={`${article.customHref ?? `/articles/${article.slug}`}`} className="before:absolute before:inset-0">
             {article.title}
           </Link>
           <span className="inline-flex shrink-0 items-center gap-4 text-sm font-serif text-[#9E9E9E] translate-y-2">
@@ -74,7 +74,7 @@ export default function ArticleCard({
 
         {showReadMore ? (
           <Link
-            href={`/articles/${article.slug}`}
+            href={`${article.customHref ?? `/articles/${article.slug}`}`}
             className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-[#A1887F] opacity-0 -translate-x-4 transition-all duration-700 group-hover:translate-x-0 group-hover:opacity-100 z-10"
           >
             <span>阅读全文</span>

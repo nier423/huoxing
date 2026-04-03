@@ -33,6 +33,7 @@ export const CATEGORY_ORDER = [
   "胡说八道",
   "三行两句",
   "见字如面",
+  "画里话外",
 ] as const;
 
 export const CATEGORY_PATHS: Record<string, string> = {
@@ -41,6 +42,7 @@ export const CATEGORY_PATHS: Record<string, string> = {
   胡说八道: "/nonsense",
   三行两句: "/poems",
   见字如面: "/letters",
+  画里话外: "/drawing",
 };
 
 type RawArticleRow = Record<string, unknown>;
@@ -118,6 +120,7 @@ const ISSUE_PAGE_CATEGORY_HEADINGS: Record<string, string> = {
   三行两句: "三行两句-诗歌",
   见字如面: "见字如面-书信",
   画里有话: "画里有话-漫画",
+  画里话外: "画里话外-漫画",
 };
 
 export function getIssuePageCategoryHeading(category: string): string {

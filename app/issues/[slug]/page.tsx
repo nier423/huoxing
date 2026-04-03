@@ -3,13 +3,14 @@ import { notFound } from "next/navigation";
 import ArticleCard from "@/components/ArticleCard";
 import IssueBadge from "@/components/IssueBadge";
 import Navbar from "@/components/Navbar";
+import type { Article } from "@/lib/articles";
 import {
   getArticlesByIssue,
   getIssueBySlug,
   getIssuePageCategoryHeading,
   groupArticlesByCategory,
 } from "@/lib/articles";
-import { hasIssueDrawing } from "@/lib/issue-drawings";
+import { getIssueDrawingByIssueId } from "@/lib/issue-drawings";
 import { getIssueDisplayTitle } from "@/lib/issue-display";
 
 export const revalidate = 60;
@@ -45,11 +46,31 @@ export default async function IssueDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const [articles, showDrawing] = await Promise.all([
+  const [articles, drawing] = await Promise.all([
     getArticlesByIssue(issue.id),
-    hasIssueDrawing(issue.id),
+    getIssueDrawingByIssueId(issue.id),
   ]);
-  const groups = groupArticlesByCategory(articles);
+
+  // Inject drawing as a pseudo-article card at the end of the list
+  const allArticles: Article[] = [...articles];
+  if (drawing) {
+    allArticles.push({
+      id: `drawing-${drawing.id}`,
+      slug: `drawing-${drawing.id}`,
+      title: drawing.title,
+      excerpt: drawing.description ?? "画里话外，点击查看漫画。",
+      content: "",
+      author: drawing.authorName ?? "",
+      category: "画里话外",
+      publishedAt: drawing.createdAt ?? new Date().toISOString(),
+      viewCount: 0,
+      echoCount: 0,
+      issue,
+      customHref: `/issues/${issue.slug}/drawing`,
+    });
+  }
+
+  const groups = groupArticlesByCategory(allArticles);
 
   return (
     <main className="min-h-screen bg-[#F7F5F0]">
@@ -84,14 +105,6 @@ export default async function IssueDetailPage({ params }: PageProps) {
                 >
                   进入辩论
                 </Link>
-                {showDrawing ? (
-                  <Link
-                    href={`/issues/${issue.slug}/drawing`}
-                    className="inline-flex items-center rounded-full border border-[#D7CCC8] px-5 py-2 transition-colors hover:border-[#A1887F] hover:text-[#A1887F]"
-                  >
-                    画里话外
-                  </Link>
-                ) : null}
                 <Link
                   href="/issues"
                   className="inline-flex items-center rounded-full border border-[#D7CCC8] px-5 py-2 transition-colors hover:border-[#A1887F] hover:text-[#A1887F]"
