@@ -33,7 +33,7 @@ function SectionCard({
       : "-top-3 right-10 rotate-3";
 
   if (section.isStandalone) {
-    return (
+    const cardContent = (
       <div
         className={`relative rounded-sm p-6 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-transform duration-300 hover:-translate-y-1 sm:col-span-2 max-w-lg mx-auto w-full flex justify-center items-center ${style.color} ${style.rotation}`}
       >
@@ -60,6 +60,41 @@ function SectionCard({
         </div>
       </div>
     );
+
+    if (section.customHref) {
+      return (
+        <Link href={section.customHref} className="block sm:col-span-2 max-w-lg mx-auto w-full">
+          {/* We replace the card's external positioning classes with the wrapper ones, but keep inner styles */}
+          <div
+            className={`relative rounded-sm p-6 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-transform duration-300 hover:-translate-y-1 w-full flex justify-center items-center ${style.color} ${style.rotation}`}
+          >
+            {/* Washi Tape */}
+            <div
+              className={`absolute w-32 h-7 ${style.tapeColor} z-20 backdrop-blur-sm shadow-sm opacity-90 -top-3 left-1/2 -translate-x-1/2 rotate-1`}
+              style={{
+                clipPath:
+                  "polygon(5% 0, 95% 5%, 100% 90%, 5% 100%, 0 45%)",
+                backgroundImage:
+                  "repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.4) 5px, rgba(255,255,255,0.4) 10px)",
+              }}
+            />
+
+            <div
+              className="absolute inset-0 opacity-[0.03] pointer-events-none rounded-sm"
+              style={{ backgroundImage: NOISE_BG }}
+            />
+
+            <div className="relative z-10 flex items-center justify-center border-2 border-dashed border-[#A1887F]/40 p-4 w-full rounded-sm">
+              <h3 className="text-xl font-bold tracking-widest text-[#4A3B32] md:text-2xl font-serif text-center">
+                {section.displayName}
+              </h3>
+            </div>
+          </div>
+        </Link>
+      );
+    }
+
+    return cardContent;
   }
 
   return (

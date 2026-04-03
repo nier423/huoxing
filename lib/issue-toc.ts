@@ -16,6 +16,7 @@ export interface TOCSection {
   sortOrder: number;
   isStandalone: boolean;
   items: TOCItem[];
+  customHref?: string;
 }
 
 type RawSectionRow = Record<string, unknown>;
@@ -136,13 +137,22 @@ export async function getIssueTOC(issueId: string): Promise<TOCSection[]> {
   // 4. Assemble sections with their items
   return (sectionRows as RawSectionRow[]).map((row) => {
     const id = String(row.id ?? "");
+    const displayName = toText(row.display_name);
+    
+    let customHref: string | undefined;
+    if (displayName.includes("漫画") || displayName.includes("画里有话")) {
+      customHref = issueSlug ? `/issues/${issueSlug}/drawing` : "/drawing";
+    } else if (displayName.includes("辩题") || displayName.includes("以辩会友")) {
+      customHref = issueSlug ? `/issues/${issueSlug}/debate` : "/debate";
+    }
 
     return {
       id,
-      displayName: toText(row.display_name),
+      displayName,
       sortOrder: Number(row.sort_order ?? 0),
       isStandalone: Boolean(row.is_standalone),
       items: itemsBySectionId.get(id) ?? [],
+      customHref,
     };
   });
 }
