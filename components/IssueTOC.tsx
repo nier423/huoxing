@@ -99,15 +99,27 @@ function SectionCard({
           {section.items.map((item) => (
             <li
               key={item.id}
-              className="group/item flex items-end justify-between gap-3 py-1.5 min-h-[32px]"
+              className="group/item py-1.5 min-h-[32px]"
             >
-              <span className="text-[0.95rem] leading-relaxed text-[#5C4D43] transition-colors duration-200 group-hover/item:text-[#241A14] md:text-[1rem]">
-                {item.title}
-              </span>
-              <span className="flex-1 border-b-2 border-dotted border-[#D7CCC8]/60 mb-[6px] mx-2 group-hover/item:border-[#8D6E63]/40 transition-colors duration-200" />
-              <span className="flex-shrink-0 text-[0.85rem] tracking-wide text-[#A08979] md:text-[0.9rem] italic">
-                {item.author}
-              </span>
+              {/* Desktop: horizontal with dotted line */}
+              <div className="hidden md:flex items-end justify-between gap-3">
+                <span className="text-[1rem] leading-relaxed text-[#5C4D43] transition-colors duration-200 group-hover/item:text-[#241A14]">
+                  {item.title}
+                </span>
+                <span className="flex-1 border-b-2 border-dotted border-[#D7CCC8]/60 mb-[6px] mx-2 min-w-[2rem] group-hover/item:border-[#8D6E63]/40 transition-colors duration-200" />
+                <span className="flex-shrink-0 text-[0.9rem] tracking-wide text-[#A08979] italic">
+                  {item.author}
+                </span>
+              </div>
+              {/* Mobile: title on top, author below right-aligned */}
+              <div className="md:hidden">
+                <span className="text-[0.95rem] leading-relaxed text-[#5C4D43] transition-colors duration-200 group-hover/item:text-[#241A14] block">
+                  {item.title}
+                </span>
+                <span className="text-[0.8rem] tracking-wide text-[#A08979] italic block text-right mt-0.5">
+                  —— {item.author}
+                </span>
+              </div>
             </li>
           ))}
         </ul>
