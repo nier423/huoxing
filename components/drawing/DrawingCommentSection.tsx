@@ -107,17 +107,16 @@ export default function DrawingCommentSection({
           comments.map((item, index) => (
             <article
               key={item.id}
-              className={`rounded-sm border p-5 ${
-                index % 3 === 0
+              className={`rounded-sm border p-5 ${index % 3 === 0
                   ? "border-[#E6DDD5] bg-[#F4EFEA]"
                   : index % 3 === 1
                     ? "border-[#DDE3DA] bg-[#EEF1ED]"
                     : "border-[#DCE0E8] bg-[#EEF0F4]"
-              }`}
+                }`}
             >
               <div className="mb-3 space-y-2 text-xs text-[#9E9E9E]">
                 <p className="text-[11px] leading-relaxed text-[#6A6A6A]">
-                  匿名留言
+                  点亮者
                 </p>
                 <p>{formatDate(item.createdAt)}</p>
               </div>
