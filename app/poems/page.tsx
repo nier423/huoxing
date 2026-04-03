@@ -13,7 +13,7 @@ export default async function PoemsPage() {
     <CategoryStoriesPage
       title="三行两句"
       englishTitle="Poetry & Whispers"
-      description="诗歌是灵魂的呼吸。用极简的文字，触碰最真实的共鸣。"
+      description="诗歌是灵魂的呼吸。"
       articles={articles}
       issue={currentIssue}
     />
