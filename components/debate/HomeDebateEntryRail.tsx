@@ -19,23 +19,23 @@ interface HomeDebateEntryRailProps {
 }
 
 function getFeaturedEntryIndex(entries: DebateEntryItem[]) {
-  const launchedIndex = entries.findIndex((entry) => entry.status !== "not_started");
+  const ongoingIndices = entries
+    .map((entry, index) => (entry.status === "ongoing" ? index : -1))
+    .filter((index) => index !== -1);
 
-  if (launchedIndex !== -1) {
-    return launchedIndex;
+  if (ongoingIndices.length === 1) {
+    return ongoingIndices[0];
   }
 
-  return 0;
+  return null;
 }
 
 export default function HomeDebateEntryRail({
   entries,
 }: HomeDebateEntryRailProps) {
-  const allLaunched =
-    entries.length > 0 && entries.every((entry) => entry.status !== "not_started");
-  const featuredIndex = allLaunched ? null : getFeaturedEntryIndex(entries);
+  const featuredIndex = getFeaturedEntryIndex(entries);
   const [activeIndex, setActiveIndex] = useState<number | null>(featuredIndex);
-  const highlightOnHover = allLaunched && entries.length > 1;
+  const highlightOnHover = entries.length > 1;
 
   function handleActivate(index: number) {
     if (!highlightOnHover) {

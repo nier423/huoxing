@@ -1,0 +1,116 @@
+import "server-only";
+import { createClient } from "@supabase/supabase-js";
+
+export interface TOCItem {
+  id: string;
+  title: string;
+  author: string;
+  sortOrder: number;
+}
+
+export interface TOCSection {
+  id: string;
+  displayName: string;
+  sortOrder: number;
+  isStandalone: boolean;
+  items: TOCItem[];
+}
+
+type RawSectionRow = Record<string, unknown>;
+type RawItemRow = Record<string, unknown>;
+
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error("[issue-toc] 缺少 Supabase 环境变量配置");
+    return null;
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey);
+}
+
+function toText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * Fetch the full table of contents for an issue.
+ * RLS ensures only published-issue data is returned.
+ */
+export async function getIssueTOC(issueId: string): Promise<TOCSection[]> {
+  if (!issueId) {
+    return [];
+  }
+
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return [];
+  }
+
+  // 1. Fetch sections for this issue
+  const { data: sectionRows, error: secError } = await supabase
+    .from("issue_toc_sections")
+    .select("id, display_name, sort_order, is_standalone")
+    .eq("issue_id", issueId)
+    .order("sort_order", { ascending: true });
+
+  if (secError || !sectionRows || sectionRows.length === 0) {
+    if (secError) {
+      console.error("[getIssueTOC] 获取目录栏目失败:", secError);
+    }
+    return [];
+  }
+
+  const sectionIds = (sectionRows as RawSectionRow[]).map((row) =>
+    String(row.id ?? "")
+  );
+
+  // 2. Fetch all items for these sections in one query
+  const { data: itemRows, error: itemError } = await supabase
+    .from("issue_toc_items")
+    .select("id, section_id, title, author, sort_order")
+    .in("section_id", sectionIds)
+    .order("sort_order", { ascending: true });
+
+  if (itemError) {
+    console.error("[getIssueTOC] 获取目录条目失败:", itemError);
+  }
+
+  // 3. Group items by section_id
+  const itemsBySectionId = new Map<string, TOCItem[]>();
+
+  for (const row of (itemRows as RawItemRow[] | null) ?? []) {
+    const sectionId = String(row.section_id ?? "");
+
+    if (!sectionId) {
+      continue;
+    }
+
+    const item: TOCItem = {
+      id: String(row.id ?? ""),
+      title: toText(row.title),
+      author: toText(row.author),
+      sortOrder: Number(row.sort_order ?? 0),
+    };
+
+    const items = itemsBySectionId.get(sectionId) ?? [];
+    items.push(item);
+    itemsBySectionId.set(sectionId, items);
+  }
+
+  // 4. Assemble sections with their items
+  return (sectionRows as RawSectionRow[]).map((row) => {
+    const id = String(row.id ?? "");
+
+    return {
+      id,
+      displayName: toText(row.display_name),
+      sortOrder: Number(row.sort_order ?? 0),
+      isStandalone: Boolean(row.is_standalone),
+      items: itemsBySectionId.get(id) ?? [],
+    };
+  });
+}

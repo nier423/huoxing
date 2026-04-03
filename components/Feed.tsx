@@ -1,10 +1,10 @@
 import Link from "next/link";
-import type { SVGProps } from "react";
-import { Mail, Newspaper } from "lucide-react";
 import type { Issue } from "@/lib/articles";
 import type { DebateTopicStatus } from "@/lib/debate-schedule";
+import type { TOCSection } from "@/lib/issue-toc";
 import HomeDebateEntryRail from "@/components/debate/HomeDebateEntryRail";
 import IssueBadge from "@/components/IssueBadge";
+import IssueTOC from "@/components/IssueTOC";
 import { getIssueDisplayTitle } from "@/lib/issue-display";
 
 interface FeedProps {
@@ -18,23 +18,11 @@ interface FeedProps {
     endsAt: string | null;
     status: DebateTopicStatus;
   }>;
+  tocSections?: TOCSection[];
 }
 
-function WeChatIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true"
-      {...props}
-    >
-      <path d="M8.35 5.18C4.84 5.18 2 7.57 2 10.53c0 1.8 1.06 3.44 2.83 4.45l-.72 2.56 2.82-1.48c.46.11.94.17 1.42.17-.08-.34-.12-.7-.12-1.07 0-3.46 3.2-6.23 7.12-6.23.23 0 .46.01.69.04-.61-2.2-2.97-3.79-5.69-3.79Zm-2.53 4a.84.84 0 1 1 0 1.68.84.84 0 0 1 0-1.68Zm5.07 0a.84.84 0 1 1 0 1.68.84.84 0 0 1 0-1.68Z" />
-      <path d="M15.65 10.12c-3.52 0-6.35 2.33-6.35 5.2 0 1.58.87 3.02 2.35 3.99L11 21.54l2.42-1.28c.7.22 1.45.33 2.23.33 3.5 0 6.35-2.34 6.35-5.27 0-2.86-2.84-5.2-6.35-5.2Zm-2.16 4.13a.75.75 0 1 1 0 1.5.75.75 0 0 1 0-1.5Zm4.35 0a.75.75 0 1 1 0 1.5.75.75 0 0 1 0-1.5Z" />
-    </svg>
-  );
-}
 
-export default function Feed({ issue = null, debateEntries = [] }: FeedProps) {
+export default function Feed({ issue = null, debateEntries = [], tocSections = [] }: FeedProps) {
   return (
     <section className="bg-white/0 px-6 pb-4 pt-6 md:px-12 md:pb-8 md:pt-10 lg:px-24 lg:pb-10 lg:pt-12">
       <div className="mx-auto max-w-7xl">
@@ -90,58 +78,11 @@ export default function Feed({ issue = null, debateEntries = [] }: FeedProps) {
           </div>
         ) : null}
 
-        <div className="border-t border-[#EEE4D8] pt-10 opacity-0 animate-[fadeInUp_0.8s_ease-out_0.7s_forwards] md:pt-12">
-          <section className="relative overflow-hidden rounded-[2.2rem] bg-[linear-gradient(180deg,#FFFDF9_0%,#F7F0E8_100%)] px-6 py-7 shadow-[0_24px_60px_-44px_rgba(56,39,24,0.5)] md:px-10 md:py-10">
-            <div className="pointer-events-none absolute inset-0 rounded-[2.2rem] border border-[#2F221B]/65" />
-            <div className="pointer-events-none absolute inset-[0.55rem] rounded-[1.9rem] border border-[#2F221B]/12" />
-            <div className="pointer-events-none absolute left-6 right-6 top-5 h-px bg-[#2F221B]/10 md:left-10 md:right-10" />
-
-            <div className="relative">
-              <div className="max-w-[18rem]">
-                <p className="font-liuye text-[2.8rem] leading-[0.86] tracking-[0.02em] text-[#241A14] md:text-[4.8rem]">
-                  Let&apos;s
-                  <br />
-                  Connect
-                </p>
-                <p className="mt-4 max-w-sm text-sm leading-7 text-[#786456] md:text-[0.95rem]">
-                  {"\u613f\u610f\u6765\u4fe1\u3001\u6765\u804a\u3001\u6765\u627e\u5230\u6211\u4eec\uff0c\u5c31\u4ece\u8fd9\u91cc\u5f00\u59cb\u3002"}
-                </p>
-              </div>
-
-              <div className="mt-10 grid gap-5 md:mt-14 md:grid-cols-3">
-                <div className="border-t border-[#D9CCBE] pt-3">
-                  <div className="text-[#3A2C24]">
-                    <Mail className="h-4 w-4" strokeWidth={1.7} />
-                  </div>
-                  <a
-                    href="mailto:superray6261@gmail.com"
-                    className="mt-4 block break-all text-[1.05rem] leading-7 text-[#3A2C24] transition hover:text-[#3A2C24]/80"
-                  >
-                    superray6261@gmail.com
-                  </a>
-                </div>
-
-                <div className="border-t border-[#D9CCBE] pt-3">
-                  <div className="text-[#3A2C24]">
-                    <WeChatIcon className="h-4 w-4" />
-                  </div>
-                  <p className="mt-4 break-all text-[1.05rem] leading-7 text-[#3A2C24]">
-                    xinghuotakan0308
-                  </p>
-                </div>
-
-                <div className="border-t border-[#D9CCBE] pt-3">
-                  <div className="text-[#3A2C24]">
-                    <Newspaper className="h-4 w-4" strokeWidth={1.7} />
-                  </div>
-                  <p className="mt-4 text-[1.05rem] leading-7 text-[#3A2C24]">
-                    {"\u661f\u706b-\u597d\u770b"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
+        {tocSections.length > 0 ? (
+          <div className="border-t border-[#EEE4D8] pt-10 opacity-0 animate-[fadeInUp_0.8s_ease-out_0.7s_forwards] md:pt-12">
+            <IssueTOC sections={tocSections} issueLabel={issue?.label} />
+          </div>
+        ) : null}
       </div>
     </section>
   );
