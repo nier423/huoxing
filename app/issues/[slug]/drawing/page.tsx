@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import DrawingCommentSection from "@/components/drawing/DrawingCommentSection";
 import DrawingImageSwiper from "@/components/drawing/DrawingImageSwiper";
 import Navbar from "@/components/Navbar";
+import ViewTracker from "@/components/ViewTracker";
 import { fetchDrawingComments } from "@/app/actions/drawing-comments";
 import { getIssueBySlug } from "@/lib/articles";
 import { getIssueDrawingByIssueId } from "@/lib/issue-drawings";
@@ -42,6 +43,10 @@ export default async function IssueDrawingPage({ params }: PageProps) {
   return (
     <main className="min-h-screen bg-[#F7F5F0]">
       <Navbar />
+      <ViewTracker
+        endpoint={`/api/issue-drawings/${drawing.id}/view`}
+        storageKey={`viewed:drawing:${drawing.id}`}
+      />
 
       <div className="mx-auto max-w-6xl px-4 pb-24 pt-24 md:px-8 md:pt-32">
         <Link

@@ -64,7 +64,10 @@ export default async function ArticleDetail({
   return (
     <main className="min-h-screen bg-[#F7F5F0]">
       <Navbar />
-      <ViewTracker articleId={article.id} />
+      <ViewTracker
+        endpoint={`/api/articles/${article.id}/view`}
+        storageKey={`viewed:article:${article.id}`}
+      />
 
       <article className="mx-auto max-w-3xl animate-fade-in px-4 pb-24 pt-24 md:pt-32 md:px-8">
         <Link

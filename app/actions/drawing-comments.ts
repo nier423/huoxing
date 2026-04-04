@@ -130,6 +130,7 @@ export async function submitDrawingComment(
   }
 
   revalidatePath(`/issues/${issueSlug}/drawing`);
+  revalidatePath(`/issues/${issueSlug}`);
 
   return {
     success: true,

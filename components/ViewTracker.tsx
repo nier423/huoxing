@@ -3,20 +3,20 @@
 import { useEffect } from "react";
 
 interface ViewTrackerProps {
-  articleId: string;
+  endpoint: string;
+  storageKey: string;
 }
 
-export default function ViewTracker({ articleId }: ViewTrackerProps) {
+export default function ViewTracker({ endpoint, storageKey }: ViewTrackerProps) {
   useEffect(() => {
-    if (!articleId) return;
-    const key = `viewed:${articleId}`;
-    if (sessionStorage.getItem(key)) return;
+    if (!endpoint || !storageKey) return;
+    if (sessionStorage.getItem(storageKey)) return;
 
-    sessionStorage.setItem(key, "1");
-    void fetch(`/api/articles/${articleId}/view`, {
+    sessionStorage.setItem(storageKey, "1");
+    void fetch(endpoint, {
       method: "POST",
     });
-  }, [articleId]);
+  }, [endpoint, storageKey]);
 
   return null;
 }

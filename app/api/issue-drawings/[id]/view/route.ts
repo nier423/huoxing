@@ -8,14 +8,15 @@ interface RouteContext {
 }
 
 export async function POST(_: Request, { params }: RouteContext) {
-  const articleId = params.id;
-  if (!articleId) {
+  const drawingId = params.id;
+
+  if (!drawingId) {
     return NextResponse.json({ success: false }, { status: 400 });
   }
 
   const supabase = createAdminClient();
-  const { data, error } = await supabase.rpc("increment_article_view_count", {
-    p_article_id: articleId,
+  const { data, error } = await supabase.rpc("increment_issue_drawing_view_count", {
+    p_drawing_id: drawingId,
   });
 
   if (error) {

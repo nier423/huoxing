@@ -63,8 +63,8 @@ export default async function IssueDetailPage({ params }: PageProps) {
       author: drawing.authorHandle ? `小红书ID：${drawing.authorHandle}` : (drawing.authorName ?? "星火编辑部"),
       category: "画里话外",
       publishedAt: drawing.createdAt ?? new Date().toISOString(),
-      viewCount: 0,
-      echoCount: 0,
+      viewCount: drawing.viewCount,
+      echoCount: drawing.commentCount,
       issue,
       customHref: `/issues/${issue.slug}/drawing`,
     });
