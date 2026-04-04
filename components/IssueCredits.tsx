@@ -92,12 +92,12 @@ export default function IssueCredits({ issueSlug }: IssueCreditsProps) {
           ))}
         </div>
 
-        <div className="mt-10 flex items-center gap-4 text-[#A1887F] opacity-90">
-          <span className="h-[1px] w-8 bg-[#D7CCC8]/60" />
-          <p className="text-xs tracking-[0.25em] font-light">
+        <div className="mt-10 flex items-center justify-center gap-3 text-[#8D6E63] opacity-95">
+          <span className="h-[1px] w-8 bg-[#C5B3A6]/70" />
+          <p className="text-sm md:text-lg tracking-[0.12em] font-semibold leading-relaxed text-center">
             {data.message}
           </p>
-          <span className="h-[1px] w-8 bg-[#D7CCC8]/60" />
+          <span className="h-[1px] w-8 bg-[#C5B3A6]/70" />
         </div>
       </div>
     </div>
