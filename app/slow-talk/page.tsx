@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import CategoryStoriesPage from "@/components/CategoryStoriesPage";
 import { getArticlesByCategory, getCurrentIssue } from "@/lib/articles";
 
@@ -8,6 +9,10 @@ export default async function SlowTalkPage() {
   const articles = await getArticlesByCategory("有话慢谈", 30, {
     issueId: currentIssue?.id ?? null,
   });
+
+  if (articles.length === 1) {
+    redirect(`/articles/${encodeURIComponent(articles[0].slug)}`);
+  }
 
   return (
     <CategoryStoriesPage

@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { getCurrentIssue, getArticlesByCategory } from "@/lib/articles";
 
@@ -40,6 +41,10 @@ export default async function Letters() {
   if (letters.length === 0) {
     const { default: Collecting } = await import("@/components/Collecting");
     return <Collecting />;
+  }
+
+  if (letters.length === 1) {
+    redirect(`/articles/${encodeURIComponent(letters[0].slug)}`);
   }
 
   return (
