@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import CategoryStoriesPage from "@/components/CategoryStoriesPage";
 import { getArticlesByCategory, getCurrentIssue } from "@/lib/articles";
 
@@ -8,6 +9,10 @@ export default async function NonsensePage() {
   const articles = await getArticlesByCategory("胡说八道", 30, {
     issueId: currentIssue?.id ?? null,
   });
+
+  if (articles.length === 1) {
+    redirect(`/articles/${encodeURIComponent(articles[0].slug)}`);
+  }
 
   return (
     <CategoryStoriesPage
