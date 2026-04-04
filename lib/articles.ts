@@ -113,20 +113,30 @@ export function normalizeCategory(category: string): string {
   return category;
 }
 
+interface IssuePageCategoryHeading {
+  title: string;
+  subtitle?: string;
+}
+
 /** 期刊专题页 `/issues/[slug]` 分栏大标题（与导航、栏目独立页、文章内文小标题无关） */
-const ISSUE_PAGE_CATEGORY_HEADINGS: Record<string, string> = {
-  有话慢谈: "有话慢谈-随笔",
-  人间剧场: "人间剧场-小说",
-  胡说八道: "胡说八道-杂谈",
-  三行两句: "三行两句-诗歌",
-  见字如面: "见字如面-书信",
-  画里有话: "画里有话-漫画",
-  画里话外: "画里话外-漫画",
+const ISSUE_PAGE_CATEGORY_HEADINGS: Record<string, IssuePageCategoryHeading> = {
+  有话慢谈: { title: "有话慢谈", subtitle: "随笔" },
+  人间剧场: { title: "人间剧场", subtitle: "小说" },
+  胡说八道: { title: "胡说八道", subtitle: "杂谈" },
+  三行两句: { title: "三行两句", subtitle: "诗歌" },
+  见字如面: { title: "见字如面", subtitle: "书信" },
+  画里有话: { title: "画里有话", subtitle: "漫画" },
+  画里话外: { title: "画里话外", subtitle: "漫画" },
 };
 
-export function getIssuePageCategoryHeading(category: string): string {
+export function getIssuePageCategoryHeadingParts(category: string): IssuePageCategoryHeading {
   const key = normalizeCategory(category);
-  return ISSUE_PAGE_CATEGORY_HEADINGS[key] ?? category;
+  return ISSUE_PAGE_CATEGORY_HEADINGS[key] ?? { title: key };
+}
+
+export function getIssuePageCategoryHeading(category: string): string {
+  const { title, subtitle } = getIssuePageCategoryHeadingParts(category);
+  return subtitle ? `${title}-${subtitle}` : title;
 }
 
 function getCategoryAliases(category: string) {

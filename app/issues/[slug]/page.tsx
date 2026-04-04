@@ -7,7 +7,7 @@ import type { Article } from "@/lib/articles";
 import {
   getArticlesByIssue,
   getIssueBySlug,
-  getIssuePageCategoryHeading,
+  getIssuePageCategoryHeadingParts,
   groupArticlesByCategory,
 } from "@/lib/articles";
 import { getIssueDrawingByIssueId } from "@/lib/issue-drawings";
@@ -21,6 +21,7 @@ function formatDate(input: string | null) {
   }
 
   const date = new Date(input);
+
   if (Number.isNaN(date.getTime())) {
     return input;
   }
@@ -38,6 +39,94 @@ interface PageProps {
   };
 }
 
+type ArticleCategoryGroup = [string, Article[]];
+
+interface IssueCategoryRow {
+  groups: ArticleCategoryGroup[];
+}
+
+function buildIssueCategoryRows(groups: ArticleCategoryGroup[]): IssueCategoryRow[] {
+  const rows: IssueCategoryRow[] = [];
+  let pendingSingleCardGroups: ArticleCategoryGroup[] = [];
+
+  const flushSingleCardGroups = () => {
+    if (pendingSingleCardGroups.length === 0) {
+      return;
+    }
+
+    rows.push({ groups: pendingSingleCardGroups });
+    pendingSingleCardGroups = [];
+  };
+
+  for (const group of groups) {
+    const [, categoryArticles] = group;
+
+    if (categoryArticles.length === 1) {
+      pendingSingleCardGroups.push(group);
+
+      if (pendingSingleCardGroups.length === 2) {
+        flushSingleCardGroups();
+      }
+
+      continue;
+    }
+
+    flushSingleCardGroups();
+    rows.push({ groups: [group] });
+  }
+
+  flushSingleCardGroups();
+
+  return rows;
+}
+
+function IssueCategorySection({
+  category,
+  categoryArticles,
+}: {
+  category: string;
+  categoryArticles: Article[];
+}) {
+  const categoryHeading = getIssuePageCategoryHeadingParts(category);
+  const cardGridClassName =
+    categoryArticles.length > 1
+      ? "grid grid-cols-1 gap-x-12 gap-y-20 md:grid-cols-2"
+      : "grid grid-cols-1 gap-x-12 gap-y-20";
+
+  return (
+    <section id={category} className="scroll-mt-28 space-y-8">
+      <div className="flex items-center gap-3 border-b border-[#DDD6CE] pb-4">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#A1887F] opacity-60" />
+        <h2 className="flex flex-wrap items-end gap-x-2 gap-y-1 text-[#2C2C2C]">
+          <span className="font-youyou text-3xl">{categoryHeading.title}</span>
+          {categoryHeading.subtitle ? (
+            <span className="inline-flex items-end gap-2 pb-0.5 text-[#8A7A73]">
+              <span aria-hidden="true" className="text-sm font-serif text-[#B8AAA0]">
+                -
+              </span>
+              <span className="font-note text-base tracking-[0.12em] md:text-lg">
+                {categoryHeading.subtitle}
+              </span>
+            </span>
+          ) : null}
+        </h2>
+        <span className="text-sm text-[#8D8D8D]">{categoryArticles.length} 篇</span>
+      </div>
+
+      <div className={cardGridClassName}>
+        {categoryArticles.map((article) => (
+          <ArticleCard
+            key={article.id}
+            article={article}
+            showReadMore
+            extendedCategoryLabel
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default async function IssueDetailPage({ params }: PageProps) {
   const slug = decodeURIComponent(params.slug);
   const issue = await getIssueBySlug(slug);
@@ -51,8 +140,8 @@ export default async function IssueDetailPage({ params }: PageProps) {
     getIssueDrawingByIssueId(issue.id),
   ]);
 
-  // Inject drawing as a pseudo-article card at the end of the list
   const allArticles: Article[] = [...articles];
+
   if (drawing) {
     allArticles.push({
       id: `drawing-${drawing.id}`,
@@ -60,7 +149,9 @@ export default async function IssueDetailPage({ params }: PageProps) {
       title: drawing.title,
       excerpt: drawing.description ?? "画里话外，点击查看漫画。",
       content: "",
-      author: drawing.authorHandle ? `小红书ID：${drawing.authorHandle}` : (drawing.authorName ?? "星火编辑部"),
+      author: drawing.authorHandle
+        ? `小红书ID：${drawing.authorHandle}`
+        : (drawing.authorName ?? "星火编辑部"),
       category: "画里话外",
       publishedAt: drawing.createdAt ?? new Date().toISOString(),
       viewCount: drawing.viewCount,
@@ -71,6 +162,7 @@ export default async function IssueDetailPage({ params }: PageProps) {
   }
 
   const groups = groupArticlesByCategory(allArticles);
+  const categoryRows = buildIssueCategoryRows(groups);
 
   return (
     <main className="min-h-screen bg-[#F7F5F0]">
@@ -122,27 +214,23 @@ export default async function IssueDetailPage({ params }: PageProps) {
           </div>
         ) : (
           <div className="space-y-16">
-            {groups.map(([category, categoryArticles]) => (
-              <section key={category} id={category} className="scroll-mt-28 space-y-8">
-                <div className="flex items-center gap-3 border-b border-[#DDD6CE] pb-4">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#A1887F] opacity-60" />
-                  <h2 className="font-youyou text-3xl text-[#2C2C2C]">
-                    {getIssuePageCategoryHeading(category)}
-                  </h2>
-                  <span className="text-sm text-[#8D8D8D]">{categoryArticles.length} 篇</span>
-                </div>
-
-                <div className="grid grid-cols-1 gap-x-12 gap-y-20 md:grid-cols-2">
-                  {categoryArticles.map((article) => (
-                    <ArticleCard
-                      key={article.id}
-                      article={article}
-                      showReadMore
-                      extendedCategoryLabel
-                    />
-                  ))}
-                </div>
-              </section>
+            {categoryRows.map((row) => (
+              <div
+                key={row.groups.map(([category]) => category).join("-")}
+                className={
+                  row.groups.length === 2
+                    ? "grid grid-cols-1 gap-16 md:grid-cols-2 md:gap-12"
+                    : undefined
+                }
+              >
+                {row.groups.map(([category, categoryArticles]) => (
+                  <IssueCategorySection
+                    key={category}
+                    category={category}
+                    categoryArticles={categoryArticles}
+                  />
+                ))}
+              </div>
             ))}
           </div>
         )}
