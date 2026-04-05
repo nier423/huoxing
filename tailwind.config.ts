@@ -8,22 +8,22 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#F7F5F0", // 燕麦色/极浅暖灰
-        foreground: "#3A3A3A", // 深炭灰
+        background: "#F7F5F0", // oatmeal background
+        foreground: "#3A3A3A", // deep charcoal text
         primary: {
-          DEFAULT: "#BCAAA4", // 柔和的陶土色/低饱和度
+          DEFAULT: "#BCAAA4", // soft terracotta
           foreground: "#FFFFFF",
         },
         secondary: {
-          DEFAULT: "#D7CCC8", // 浅灰褐色
+          DEFAULT: "#D7CCC8", // light taupe
           foreground: "#3A3A3A",
         },
         accent: {
-          DEFAULT: "#A1887F", // 深一点的灰褐
+          DEFAULT: "#A1887F", // darker taupe accent
           foreground: "#FFFFFF",
         },
         muted: {
-          DEFAULT: "#EFEBE9", // 非常浅的灰褐
+          DEFAULT: "#EFEBE9", // very light taupe
           foreground: "#757575",
         },
         card: {
@@ -33,10 +33,10 @@ const config: Config = {
         border: "#D7CCC8",
       },
       fontFamily: {
-        serif: ["NSimSun", "SimSun", "Songti SC", "STSong", "serif"], // 本地正文字体
-        sans: ['var(--font-liuye-local)', "LiuYe", "sans-serif"], // 本地无衬线回退
-        liuye: ['var(--font-liuye-local)', "LiuYe", "serif"], // 也子工厂柳叶体
-        youyou: ['var(--font-youyou-local)', "YouYou", "serif"], // 又又意宋
+        serif: ["NSimSun", "SimSun", "Songti SC", "STSong", "serif"], // body text fallback
+        sans: ['var(--font-liuye-local)', "LiuYe", "sans-serif"], // local sans fallback
+        liuye: ['var(--font-liuye-local)', "LiuYe", "serif"], // local liuye font
+        youyou: ["youyou-yisong", "YouYou", "serif"], // split youyou font
       },
       animation: {
         "fade-in": "fadeIn 0.8s ease-out forwards",
