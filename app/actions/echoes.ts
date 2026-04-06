@@ -1,6 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import {
+  authorDisplayNameFromRow,
+  authorLabelFrom,
+  resolveCurrentAuthorDisplayName,
+} from "@/lib/comment-authors";
 import { createClient } from "@/lib/supabase/server";
 
 export interface Echo {
@@ -33,7 +38,11 @@ function toText(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-function mapEchoRow(row: RawEcho): Omit<Echo, "authorLabel"> {
+type MappedEchoRow = Omit<Echo, "authorLabel"> & {
+  authorDisplayName: string | null;
+};
+
+function mapEchoRow(row: RawEcho): MappedEchoRow {
   return {
     id: String(row.id ?? ""),
     articleId: String(row.article_id ?? ""),
@@ -44,53 +53,8 @@ function mapEchoRow(row: RawEcho): Omit<Echo, "authorLabel"> {
       toText(row.inserted_at) ||
       new Date(0).toISOString(),
     isAnonymous: Boolean(row.is_anonymous),
+    authorDisplayName: authorDisplayNameFromRow(row),
   };
-}
-
-function authorLabelFrom(
-  isAnonymous: boolean,
-  displayName: string | null | undefined
-): string {
-  if (isAnonymous) return "匿名";
-  const name = displayName?.trim();
-  if (name) return name;
-  return "用户";
-}
-
-async function enrichEchoes(
-  supabase: ReturnType<typeof createClient>,
-  rows: RawEcho[]
-): Promise<Echo[]> {
-  if (rows.length === 0) return [];
-
-  const userIds = Array.from(
-    new Set(
-      rows.map((r) => String(r.user_id ?? "")).filter(Boolean)
-    )
-  );
-
-  const profileMap = new Map<string, string>();
-  if (userIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, display_name")
-      .in("id", userIds);
-
-    if (profiles) {
-      for (const p of profiles as { id: string; display_name: string | null }[]) {
-        profileMap.set(p.id, p.display_name?.trim() ?? "");
-      }
-    }
-  }
-
-  return rows.map((row) => {
-    const base = mapEchoRow(row);
-    const displayName = profileMap.get(base.userId);
-    return {
-      ...base,
-      authorLabel: authorLabelFrom(base.isAnonymous, displayName),
-    };
-  });
 }
 
 export async function fetchEchoes(articleId: string): Promise<Echo[]> {
@@ -111,7 +75,19 @@ export async function fetchEchoes(articleId: string): Promise<Echo[]> {
     return [];
   }
 
-  return enrichEchoes(supabase, data as RawEcho[]);
+  return (data as RawEcho[]).map((row) => {
+    const base = mapEchoRow(row);
+
+    return {
+      id: base.id,
+      articleId: base.articleId,
+      content: base.content,
+      userId: base.userId,
+      createdAt: base.createdAt,
+      isAnonymous: base.isAnonymous,
+      authorLabel: authorLabelFrom(base.isAnonymous, base.authorDisplayName),
+    };
+  });
 }
 
 export async function submitEcho(input: SubmitEchoInput): Promise<SubmitEchoResult> {
@@ -143,6 +119,7 @@ export async function submitEcho(input: SubmitEchoInput): Promise<SubmitEchoResu
   }
 
   const isAnonymous = Boolean(input.isAnonymous);
+  const authorDisplayName = await resolveCurrentAuthorDisplayName(supabase, user);
 
   const { data, error } = await supabase
     .from("echoes")
@@ -151,6 +128,7 @@ export async function submitEcho(input: SubmitEchoInput): Promise<SubmitEchoResu
       content,
       user_id: user.id,
       is_anonymous: isAnonymous,
+      author_display_name: authorDisplayName,
     })
     .select("*")
     .single();
@@ -164,19 +142,15 @@ export async function submitEcho(input: SubmitEchoInput): Promise<SubmitEchoResu
   }
 
   const base = mapEchoRow(data as RawEcho);
-  let displayName: string | undefined;
-  if (!isAnonymous) {
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("id", user.id)
-      .maybeSingle();
-    displayName = prof?.display_name?.trim() ?? undefined;
-  }
 
   const echo: Echo = {
-    ...base,
-    authorLabel: authorLabelFrom(isAnonymous, displayName),
+    id: base.id,
+    articleId: base.articleId,
+    content: base.content,
+    userId: base.userId,
+    createdAt: base.createdAt,
+    isAnonymous: base.isAnonymous,
+    authorLabel: authorLabelFrom(base.isAnonymous, base.authorDisplayName),
   };
 
   revalidatePath("/", "layout");
