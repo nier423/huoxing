@@ -62,9 +62,12 @@ export default function ArticleCard({
           </span>
         </h2>
 
-        <p className="line-clamp-3 font-serif text-lg md:text-xl leading-[2] text-[#5A504A] opacity-80 transition-opacity duration-500 group-hover:opacity-100">
+        <Link
+          href={`/articles/${article.slug}`}
+          className="line-clamp-3 block cursor-pointer font-serif text-lg md:text-xl leading-[2] text-[#5A504A] opacity-80 transition-colors duration-500 hover:text-[#A1887F] group-hover:opacity-100"
+        >
           {article.excerpt}
-        </p>
+        </Link>
       </div>
 
       <div className="flex items-center justify-between pt-4 mt-auto">

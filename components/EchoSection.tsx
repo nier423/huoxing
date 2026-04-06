@@ -30,16 +30,23 @@ export default function EchoSection({
   const [echoes, setEchoes] = useState(initialEchoes);
   const [content, setContent] = useState("");
   const [message, setMessage] = useState("");
+  const [anonymous, setAnonymous] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const publish = () => {
+    const trimmed = content.trim();
+    if (!trimmed) {
+      setMessage("请写下回音内容后再发布");
+      return;
+    }
+
     setMessage("");
 
     startTransition(async () => {
       const result = await submitEcho({
         articleId,
-        content,
+        content: trimmed,
+        isAnonymous: anonymous,
       });
 
       if (!result.success || !result.echo) {
@@ -49,64 +56,99 @@ export default function EchoSection({
 
       setEchoes((prev) => [...prev, result.echo!]);
       setContent("");
-      setMessage("回音发送成功");
+      setAnonymous(false);
+      setMessage(result.message);
     });
   };
 
   return (
     <section className="mt-20 border-t border-[#D7CCC8]/40 pt-12">
-      <div className="flex items-center gap-3 mb-8">
-        <MessageSquare className="w-5 h-5 text-[#A1887F]" />
-        <h2 className="font-youyou text-2xl text-[#3A3A3A] tracking-widest">Echoes 回响</h2>
+      <div className="mb-8 flex items-center gap-3">
+        <MessageSquare className="h-5 w-5 text-[#A1887F]" />
+        <h2 className="font-youyou text-2xl tracking-widest text-[#3A3A3A]">
+          Echoes 回响
+        </h2>
       </div>
 
       {isLoggedIn ? (
-        <form onSubmit={onSubmit} className="bg-[#FAF9F6] border border-[#EFEBE9] p-5 rounded-sm space-y-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            publish();
+          }}
+          className="space-y-4 rounded-sm border border-[#EFEBE9] bg-[#FAF9F6] p-5"
+        >
           <textarea
             value={content}
             onChange={(event) => setContent(event.target.value)}
             placeholder="写下你的回音..."
             rows={4}
-            className="w-full border border-[#E0DAD6] bg-white px-3 py-2 text-sm leading-7 focus:outline-none focus:border-[#A1887F] resize-y"
+            className="w-full resize-y border border-[#E0DAD6] bg-white px-3 py-2 text-sm leading-7 focus:border-[#A1887F] focus:outline-none"
             required
           />
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-[#9E9E9E]">{message}</p>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="px-4 py-2 text-xs tracking-widest border border-[#A1887F] text-[#A1887F] hover:bg-[#A1887F] hover:text-white transition-colors disabled:opacity-60"
-            >
-              {isPending ? "发送中..." : "发送回音"}
-            </button>
+            <div className="ml-auto flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xs text-[#6A6A6A]">匿名发布</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={anonymous}
+                  aria-label="匿名发布"
+                  disabled={isPending}
+                  onClick={() => setAnonymous((v) => !v)}
+                  className={`relative h-7 w-12 shrink-0 rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A1887F]/50 disabled:opacity-50 ${
+                    anonymous
+                      ? "border-[#A1887F] bg-[#A1887F]"
+                      : "border-[#D7CCC8] bg-[#E8E4DF]"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all duration-200 ${
+                      anonymous ? "left-auto right-0.5" : "left-0.5 right-auto"
+                    }`}
+                  />
+                </button>
+              </div>
+              <button
+                type="submit"
+                disabled={isPending}
+                className="border border-[#A1887F] px-4 py-2 text-xs tracking-widest text-[#A1887F] transition-colors hover:bg-[#A1887F] hover:text-white disabled:opacity-60"
+              >
+                {isPending ? "发送中..." : "发送回音"}
+              </button>
+            </div>
           </div>
         </form>
       ) : (
-        <div className="bg-[#FAF9F6] border border-[#EFEBE9] p-5 rounded-sm text-sm text-[#8D8D8D]">
+        <div className="rounded-sm border border-[#EFEBE9] bg-[#FAF9F6] p-5 text-sm text-[#8D8D8D]">
           请先点亮身份，再留下你的星火。
         </div>
       )}
 
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
         {echoes.length === 0 ? (
-          <p className="text-sm text-[#9E9E9E] md:col-span-2">旷野安静，等待第一声回响。</p>
+          <p className="text-sm text-[#9E9E9E] md:col-span-2">
+            旷野安静，等待第一声回响。
+          </p>
         ) : (
           echoes.map((echo, index) => (
             <article
               key={echo.id}
-              className={`border p-5 rounded-sm ${
+              className={`rounded-sm border p-5 ${
                 index % 3 === 0
-                  ? "bg-[#F4EFEA] border-[#E6DDD5]"
+                  ? "border-[#E6DDD5] bg-[#F4EFEA]"
                   : index % 3 === 1
-                    ? "bg-[#EEF1ED] border-[#DDE3DA]"
-                    : "bg-[#EEF0F4] border-[#DCE0E8]"
+                    ? "border-[#DDE3DA] bg-[#EEF1ED]"
+                    : "border-[#DCE0E8] bg-[#EEF0F4]"
               }`}
             >
-              <div className="flex items-center justify-between text-xs text-[#9E9E9E] mb-3">
-                <span>点亮者</span>
+              <div className="mb-3 flex items-center justify-between text-xs text-[#9E9E9E]">
+                <span className="text-[#6A6A6A]">{echo.authorLabel}</span>
                 <span>{formatDate(echo.createdAt)}</span>
               </div>
-              <p className="font-serif text-[#3A3A3A] leading-7 text-[15px] whitespace-pre-wrap">
+              <p className="whitespace-pre-wrap font-serif text-[15px] leading-7 text-[#3A3A3A]">
                 {echo.content}
               </p>
             </article>

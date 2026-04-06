@@ -1,4 +1,4 @@
-'use server'
+"use server";
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -9,11 +9,16 @@ export interface Echo {
   content: string;
   userId: string;
   createdAt: string;
+  isAnonymous: boolean;
+  /** 展示用：匿名 或 用户昵称 */
+  authorLabel: string;
 }
 
 interface SubmitEchoInput {
   articleId: string;
   content: string;
+  /** 为 true 时前台显示匿名，不展示昵称 */
+  isAnonymous?: boolean;
 }
 
 interface SubmitEchoResult {
@@ -28,7 +33,7 @@ function toText(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-function mapEcho(row: RawEcho): Echo {
+function mapEchoRow(row: RawEcho): Omit<Echo, "authorLabel"> {
   return {
     id: String(row.id ?? ""),
     articleId: String(row.article_id ?? ""),
@@ -38,7 +43,54 @@ function mapEcho(row: RawEcho): Echo {
       toText(row.created_at) ||
       toText(row.inserted_at) ||
       new Date(0).toISOString(),
+    isAnonymous: Boolean(row.is_anonymous),
   };
+}
+
+function authorLabelFrom(
+  isAnonymous: boolean,
+  displayName: string | null | undefined
+): string {
+  if (isAnonymous) return "匿名";
+  const name = displayName?.trim();
+  if (name) return name;
+  return "用户";
+}
+
+async function enrichEchoes(
+  supabase: ReturnType<typeof createClient>,
+  rows: RawEcho[]
+): Promise<Echo[]> {
+  if (rows.length === 0) return [];
+
+  const userIds = Array.from(
+    new Set(
+      rows.map((r) => String(r.user_id ?? "")).filter(Boolean)
+    )
+  );
+
+  const profileMap = new Map<string, string>();
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, display_name")
+      .in("id", userIds);
+
+    if (profiles) {
+      for (const p of profiles as { id: string; display_name: string | null }[]) {
+        profileMap.set(p.id, p.display_name?.trim() ?? "");
+      }
+    }
+  }
+
+  return rows.map((row) => {
+    const base = mapEchoRow(row);
+    const displayName = profileMap.get(base.userId);
+    return {
+      ...base,
+      authorLabel: authorLabelFrom(base.isAnonymous, displayName),
+    };
+  });
 }
 
 export async function fetchEchoes(articleId: string): Promise<Echo[]> {
@@ -59,7 +111,7 @@ export async function fetchEchoes(articleId: string): Promise<Echo[]> {
     return [];
   }
 
-  return (data as RawEcho[]).map(mapEcho);
+  return enrichEchoes(supabase, data as RawEcho[]);
 }
 
 export async function submitEcho(input: SubmitEchoInput): Promise<SubmitEchoResult> {
@@ -90,12 +142,15 @@ export async function submitEcho(input: SubmitEchoInput): Promise<SubmitEchoResu
     };
   }
 
+  const isAnonymous = Boolean(input.isAnonymous);
+
   const { data, error } = await supabase
     .from("echoes")
     .insert({
       article_id: input.articleId,
       content,
       user_id: user.id,
+      is_anonymous: isAnonymous,
     })
     .select("*")
     .single();
@@ -108,11 +163,27 @@ export async function submitEcho(input: SubmitEchoInput): Promise<SubmitEchoResu
     };
   }
 
+  const base = mapEchoRow(data as RawEcho);
+  let displayName: string | undefined;
+  if (!isAnonymous) {
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    displayName = prof?.display_name?.trim() ?? undefined;
+  }
+
+  const echo: Echo = {
+    ...base,
+    authorLabel: authorLabelFrom(isAnonymous, displayName),
+  };
+
   revalidatePath("/", "layout");
 
   return {
     success: true,
-    message: "回响已发布",
-    echo: mapEcho(data as RawEcho),
+    message: isAnonymous ? "匿名回响已发布" : "回响已发布",
+    echo,
   };
 }
