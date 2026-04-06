@@ -1,6 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import {
+  authorDisplayNameFromRow,
+  authorLabelFrom,
+  resolveCurrentAuthorDisplayName,
+} from "@/lib/comment-authors";
 import { createClient } from "@/lib/supabase/server";
 
 export interface DrawingComment {
@@ -32,7 +37,11 @@ function toText(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-function mapRowBase(row: RawRow): Omit<DrawingComment, "authorLabel"> {
+type MappedDrawingCommentRow = Omit<DrawingComment, "authorLabel"> & {
+  authorDisplayName: string | null;
+};
+
+function mapRowBase(row: RawRow): MappedDrawingCommentRow {
   return {
     id: String(row.id ?? ""),
     issueId: String(row.issue_id ?? ""),
@@ -43,51 +52,8 @@ function mapRowBase(row: RawRow): Omit<DrawingComment, "authorLabel"> {
       toText(row.inserted_at) ||
       new Date(0).toISOString(),
     isAnonymous: Boolean(row.is_anonymous),
+    authorDisplayName: authorDisplayNameFromRow(row),
   };
-}
-
-function authorLabelFrom(
-  isAnonymous: boolean,
-  displayName: string | null | undefined
-): string {
-  if (isAnonymous) return "匿名";
-  const name = displayName?.trim();
-  if (name) return name;
-  return "用户";
-}
-
-async function enrichComments(
-  supabase: ReturnType<typeof createClient>,
-  rows: RawRow[]
-): Promise<DrawingComment[]> {
-  if (rows.length === 0) return [];
-
-  const userIds = Array.from(
-    new Set(rows.map((r) => String(r.user_id ?? "")).filter(Boolean))
-  );
-
-  const profileMap = new Map<string, string>();
-  if (userIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, display_name")
-      .in("id", userIds);
-
-    if (profiles) {
-      for (const p of profiles as { id: string; display_name: string | null }[]) {
-        profileMap.set(p.id, p.display_name?.trim() ?? "");
-      }
-    }
-  }
-
-  return rows.map((row) => {
-    const base = mapRowBase(row);
-    const displayName = profileMap.get(base.userId);
-    return {
-      ...base,
-      authorLabel: authorLabelFrom(base.isAnonymous, displayName),
-    };
-  });
 }
 
 export async function fetchDrawingComments(issueId: string): Promise<DrawingComment[]> {
@@ -108,7 +74,19 @@ export async function fetchDrawingComments(issueId: string): Promise<DrawingComm
     return [];
   }
 
-  return enrichComments(supabase, data as RawRow[]);
+  return (data as RawRow[]).map((row) => {
+    const base = mapRowBase(row);
+
+    return {
+      id: base.id,
+      issueId: base.issueId,
+      userId: base.userId,
+      content: base.content,
+      createdAt: base.createdAt,
+      isAnonymous: base.isAnonymous,
+      authorLabel: authorLabelFrom(base.isAnonymous, base.authorDisplayName),
+    };
+  });
 }
 
 export async function submitDrawingComment(
@@ -160,6 +138,7 @@ export async function submitDrawingComment(
   }
 
   const isAnonymous = Boolean(input.isAnonymous);
+  const authorDisplayName = await resolveCurrentAuthorDisplayName(supabase, user);
 
   const { data, error } = await supabase
     .from("issue_drawing_comments")
@@ -168,6 +147,7 @@ export async function submitDrawingComment(
       content,
       user_id: user.id,
       is_anonymous: isAnonymous,
+      author_display_name: authorDisplayName,
     })
     .select("*")
     .single();
@@ -181,19 +161,15 @@ export async function submitDrawingComment(
   }
 
   const base = mapRowBase(data as RawRow);
-  let displayName: string | undefined;
-  if (!isAnonymous) {
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("id", user.id)
-      .maybeSingle();
-    displayName = prof?.display_name?.trim() ?? undefined;
-  }
 
   const comment: DrawingComment = {
-    ...base,
-    authorLabel: authorLabelFrom(isAnonymous, displayName),
+    id: base.id,
+    issueId: base.issueId,
+    userId: base.userId,
+    content: base.content,
+    createdAt: base.createdAt,
+    isAnonymous: base.isAnonymous,
+    authorLabel: authorLabelFrom(base.isAnonymous, base.authorDisplayName),
   };
 
   revalidatePath(`/issues/${issueSlug}/drawing`);
