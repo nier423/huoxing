@@ -150,8 +150,8 @@ export default function DrawingCommentSection({
                 }`}
             >
               <div className="mb-3 space-y-2 text-xs text-[#9E9E9E]">
-                <p className="break-all font-mono text-[11px] leading-relaxed text-[#6A6A6A]">
-                  用户ID {item.userId}
+                <p className="text-[11px] leading-relaxed text-[#6A6A6A]">
+                  {item.authorLabel}
                 </p>
                 <p>{formatDate(item.createdAt)}</p>
               </div>
